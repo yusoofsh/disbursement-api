@@ -819,6 +819,7 @@
             <h4>Read</h4>
             <button class="run" type="button" data-demo="list">GET /disbursements</button>
             <button class="run" type="button" data-demo="get">GET /disbursements/:id</button>
+            <button class="run" type="button" data-demo="export">GET /disbursements/export</button>
             <button class="run" type="button" data-demo="audit">GET /audit-logs</button>
           </div>
         </div>
@@ -829,7 +830,8 @@
         <code>CORS_ORIGIN</code> (see <a href="#s-run">Run &amp; Deploy</a>), and login is rate-limited to
         10/min per IP; <em>simulator</em> mode keeps its state in this page only and resets on reload.
         Either way, replay demonstrates <code>X-Idempotent-Replayed: true</code> with a byte-identical body,
-        and approving twice demonstrates the <code>409 DISBURSEMENT_NOT_PENDING</code> loser path.
+        approving twice demonstrates the <code>409 DISBURSEMENT_NOT_PENDING</code> loser path, and
+        <em>export</em> returns the same Excel-compatible CSV (<code>GET /disbursements/export</code>) as the API.
         Response rows are collapsible — the newest expands, older ones fold away; click a row to toggle it.
       </p>
     </div>
@@ -852,7 +854,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     </div>
 
     <footer>
-      disbursement-api · Fastify 5 + PostgreSQL 16 + Drizzle · 51/51 tests · CI green · generated as a self-contained explainer
+      disbursement-api · Fastify 5 + PostgreSQL 16 + Drizzle · 70/70 tests · CI green · generated as a self-contained explainer
     </footer>
 
   </div><!-- /main -->
@@ -1120,6 +1122,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         status, reqId: uuid(), replayed: replayed ?? null,
         text: body === undefined ? "" : JSON.stringify(body),
       });
+      const respondRaw = (status, text) => ({ status, reqId: uuid(), replayed: null, text });
       const failRes = (status, code, message) => respond(status, { success: false, error: { code, message } });
       const okRes = (data, status, meta) => respond(status || 200, meta ? { success: true, data, meta } : { success: true, data });
       const forbidden = () => failRes(403, "FORBIDDEN", "You do not have permission to perform this action.");
@@ -1167,6 +1170,21 @@ pnpm test          <span class="c"># 70 tests</span></pre>
             .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
           const rows = live.slice((page - 1) * limit, page * limit).map(toApi);
           return okRes(rows, 200, { page, limit, total: live.length, total_pages: Math.ceil(live.length / limit) });
+        }
+
+        if (method === "GET" && path === "/disbursements/export") {
+          // Excel-compatible CSV identical in format to the real endpoint:
+          // UTF-8 BOM, RFC 4180 quoting, CRLF line endings, ISO timestamps.
+          const cols = ["id","recipient_name","account_number","bank_code","amount","admin_fee","status","note","created_by","approved_by","created_at","updated_at"];
+          const csvField = (v) => '"' + String(v === null || v === undefined ? "" : v).replace(/"/g, '""') + '"';
+          const rows = [...disbursements.values()]
+            .filter((d) => !d.deleted_at)
+            .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+          const lines = [
+            cols.map(csvField).join(","),
+            ...rows.map((d) => [d.id, d.recipient_name, d.account_number, d.bank_code, d.amount, d.admin_fee, d.status, d.note, d.created_by, d.approved_by, d.created_at, d.updated_at].map(csvField).join(",")),
+          ];
+          return respondRaw(200, "\uFEFF" + lines.join("\r\n") + "\r\n");
         }
 
         if (method === "GET" && entityMatch) {
@@ -1468,6 +1486,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         await call("DELETE", "/disbursements/" + id, { token: accessToken });
       },
       list: () => requireAuth() && call("GET", "/disbursements?limit=5", { token: accessToken }),
+      export: () => requireAuth() && call("GET", "/disbursements/export", { token: accessToken }),
       get: async () => {
         if (!requireAuth()) return;
         const id = document.getElementById("d-id").value;
