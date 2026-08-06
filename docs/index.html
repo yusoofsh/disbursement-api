@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>disbursement-api — Technical Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #f7f4ee;
+    --surface: #fffdf8;
+    --surface2: #f0ebe0;
+    --border: rgba(60, 50, 30, 0.12);
+    --text: #2b2620;
+    --text-dim: #7a7160;
+
+    --primary: #b3542e;       /* terracotta */
+    --primary-dim: rgba(179, 84, 46, 0.09);
+    --secondary: #4d7c6f;     /* sage */
+    --secondary-dim: rgba(77, 124, 111, 0.10);
+    --tertiary: #b08d2e;      /* amber */
+    --danger: #a63a3a;
+    --ink: #3a4a5a;           /* deep slate-blue */
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1915;
+      --surface: #26221c;
+      --surface2: #2e2921;
+      --border: rgba(255, 240, 220, 0.10);
+      --text: #ece4d6;
+      --text-dim: #a29885;
+
+      --primary: #e08a5f;
+      --primary-dim: rgba(224, 138, 95, 0.14);
+      --secondary: #8fb8a9;
+      --secondary-dim: rgba(143, 184, 169, 0.14);
+      --tertiary: #d9b655;
+      --danger: #e07a7a;
+      --ink: #9db8cc;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 40px;
+    min-height: 100vh;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate { animation: fadeUp 0.4s ease-out both; animation-delay: calc(var(--i, 0) * 0.05s); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* ============ LAYOUT: TOC + main ============ */
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0 44px;
+  }
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    padding: 14px 0;
+    grid-row: 1 / -1;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+  }
+  .toc::-webkit-scrollbar { width: 3px; }
+  .toc::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px;
+    color: var(--text-dim);
+    padding-bottom: 10px; margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .toc a {
+    display: block;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 5px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.4;
+    margin-bottom: 1px;
+  }
+  .toc a:hover { color: var(--text); background: var(--surface2); }
+  .toc a.active { color: var(--text); border-left-color: var(--primary); }
+
+  /* ============ TYPOGRAPHY ============ */
+  h1 { font-size: 40px; font-weight: 700; letter-spacing: -1px; margin-bottom: 6px; text-wrap: balance; }
+  .subtitle { color: var(--text-dim); font-family: var(--font-mono); font-size: 12.5px; margin-bottom: 8px; }
+  .repo-link { font-family: var(--font-mono); font-size: 12px; color: var(--primary); text-decoration: none; }
+  .repo-link:hover { text-decoration: underline; }
+
+  .sec-head {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.3px;
+    margin: 48px 0 6px;
+    padding-top: 12px;
+    border-top: 2px solid var(--border);
+    scroll-margin-top: 24px;
+  }
+  .sec-head .num { font-family: var(--font-mono); font-size: 13px; color: var(--primary); margin-right: 10px; }
+  .sec-desc { font-size: 13.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 20px; max-width: 760px; }
+  .sec-desc code, td code, li code, .card code, p code {
+    font-family: var(--font-mono); font-size: 11.5px;
+    background: var(--primary-dim); color: var(--primary);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* ============ CARDS ============ */
+  .grid { display: grid; gap: 14px; margin-bottom: 8px; }
+  .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    min-width: 0;
+  }
+  .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .card p, .card li { font-size: 12.5px; line-height: 1.65; color: var(--text-dim); }
+  .card ul { padding-left: 18px; margin-top: 4px; }
+  .card li { margin-bottom: 3px; }
+  .card .tag {
+    display: inline-block; font-family: var(--font-mono); font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 3px; margin-bottom: 8px;
+    background: var(--secondary-dim); color: var(--secondary);
+  }
+  .card .tag.tradeoff { background: var(--primary-dim); color: var(--primary); }
+
+  /* KPI */
+  .kpi { text-align: left; }
+  .kpi .value { font-family: var(--font-mono); font-size: 26px; font-weight: 500; color: var(--primary); }
+  .kpi .label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .kpi.ok .value { color: var(--secondary); }
+
+  /* ============ TABLES ============ */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  caption { text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); padding: 10px 14px 0; }
+  th {
+    font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim); text-align: left;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+  }
+  td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
+  tr:last-child td { border-bottom: none; }
+  td .m { font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+  .pill { display: inline-block; font-family: var(--font-mono); font-size: 10px; padding: 1px 7px; border-radius: 20px; white-space: nowrap; }
+  .pill.op { background: var(--surface2); color: var(--text-dim); }
+  .pill.ad { background: var(--secondary-dim); color: var(--secondary); }
+  .pill.sa { background: var(--primary-dim); color: var(--primary); }
+  .pill.pub { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .yes { color: var(--secondary); font-weight: 600; }
+  .no { color: var(--danger); }
+
+  /* ============ MERMAID ============ */
+  .diagram-shell { position: relative; margin-bottom: 8px; }
+  .diagram-shell__hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); margin-bottom: 8px; opacity: 0.75; }
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 20px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    min-height: 320px;
+    cursor: grab;
+  }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+  .mermaid-viewport { position: relative; overflow: hidden; width: 100%; height: 100%; min-height: 280px; }
+  .mermaid-canvas { position: absolute; top: 0; left: 0; }
+  .zoom-controls {
+    position: absolute; top: 8px; right: 8px; z-index: 10;
+    display: flex; gap: 2px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px;
+  }
+  .zoom-controls button {
+    width: 28px; height: 28px; border: none; background: transparent;
+    color: var(--text-dim); font-family: var(--font-mono); font-size: 14px;
+    cursor: pointer; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+  .zoom-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); padding: 0 6px; white-space: nowrap; align-self: center; }
+  .mermaid .nodeLabel { font-family: var(--font-body) !important; font-size: 15px !important; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 12px !important; }
+
+  /* ============ CODE ============ */
+  pre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+    color: var(--text); margin-bottom: 16px;
+  }
+  pre .c { color: var(--text-dim); }
+  pre .k { color: var(--primary); }
+
+  .callout {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px; font-size: 12.5px; line-height: 1.65; color: var(--text-dim);
+    margin: 14px 0;
+  }
+  .callout strong { color: var(--text); }
+  .callout.sage { border-left-color: var(--secondary); }
+
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+
+  @media (max-width: 1000px) {
+    body { padding: 0 16px 24px; }
+    .wrap { grid-template-columns: 1fr; }
+    .toc {
+      position: sticky; top: 0; z-index: 200; max-height: none;
+      display: flex; gap: 4px; align-items: center;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 10px 16px; margin: 0 -16px;
+      grid-row: auto;
+    }
+    .toc::-webkit-scrollbar { display: none; }
+    .toc-title { display: none; }
+    .toc a { white-space: nowrap; flex-shrink: 0; border-left: none; border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; padding: 6px 10px; font-size: 10.5px; }
+    .toc a.active { border-left: none; border-bottom-color: var(--primary); background: var(--surface); }
+    .main { padding-top: 20px; }
+    .sec-head { scroll-margin-top: 56px; }
+    h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <nav class="toc" id="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#s-overview">Overview</a>
+    <a href="#s-arch">System Architecture</a>
+    <a href="#s-idem">Idempotency</a>
+    <a href="#s-conc">Concurrency</a>
+    <a href="#s-authn">Auth Lifecycle</a>
+    <a href="#s-rbac">RBAC Matrix</a>
+    <a href="#s-schema">Data Model</a>
+    <a href="#s-audit">Audit Logging</a>
+    <a href="#s-api">API Surface</a>
+    <a href="#s-decisions">Decisions &amp; Trade-offs</a>
+    <a href="#s-verify">Verification</a>
+    <a href="#s-run">Run It</a>
+  </nav>
+
+  <div class="main">
+
+    <h1 class="animate" style="--i:0">disbursement-api</h1>
+    <p class="subtitle animate" style="--i:1">LintasPay · Senior Backend Developer assessment · technical explainer</p>
+    <p class="animate" style="--i:2"><a class="repo-link" href="https://github.com/yusoofsh/disbursement-api">github.com/yusoofsh/disbursement-api</a></p>
+
+    <!-- ================= OVERVIEW ================= -->
+    <div class="sec-head animate" id="s-overview"><span class="num">01</span>Overview</div>
+    <p class="sec-desc">
+      A disbursement service engineered around one question: <em>what happens when things go wrong at the worst moment?</em>
+      Duplicate client retries, two admins approving at once, audit writes failing mid-request, tokens leaking after logout.
+      The design answers each with a database-backed guarantee rather than application-level hope.
+    </p>
+    <div class="grid cols-4">
+      <div class="card kpi ok"><div class="value">51/51</div><div class="label">tests passing (9 files)</div></div>
+      <div class="card kpi ok"><div class="value">CI ✓</div><div class="label">GitHub Actions green on clean runner</div></div>
+      <div class="card kpi"><div class="value">5</div><div class="label">tables · constraints + partial indexes</div></div>
+      <div class="card kpi"><div class="value">9</div><div class="label">endpoints · OpenAPI documented</div></div>
+    </div>
+    <div class="grid cols-3">
+      <div class="card"><span class="tag">stack</span><h3>Runtime</h3><p>Node.js 22+ · TypeScript strict · Fastify 5 · Pino JSON logs · Zod + JSON Schema validation</p></div>
+      <div class="card"><span class="tag">stack</span><h3>Data</h3><p>PostgreSQL 16 · Drizzle ORM (node-postgres) · migrations via drizzle-kit · Argon2id password hashing</p></div>
+      <div class="card"><span class="tag">stack</span><h3>Shape</h3><p>Layered: routes → service → repository. Business rules live in services/policy, never in handlers.</p></div>
+    </div>
+
+    <!-- ================= ARCHITECTURE ================= -->
+    <div class="sec-head" id="s-arch"><span class="num">02</span>System Architecture</div>
+    <p class="sec-desc">
+      A single Fastify instance fronts PostgreSQL. Every request gets a UUID request id (echoed as
+      <code>X-Request-ID</code>), passes rate limiting, JWT authentication, and a role guard before touching a service.
+      Audit writes happen <strong>after</strong> the primary transaction commits — a failure there is logged, never propagated.
+    </p>
+    <section class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in">+</button>
+          <button type="button" data-action="zoom-out">&minus;</button>
+          <button type="button" data-action="zoom-fit">&#8634;</button>
+          <button type="button" data-action="zoom-one">1:1</button>
+          <button type="button" data-action="zoom-expand">&#x26F6;</button>
+          <span class="zoom-label">…</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+        flowchart TD
+          Client["API Client"] -->|"HTTP + Bearer JWT"| RL["Rate Limiter<br/>user sub / IP bucket"]
+          RL --> RID["Request Context<br/>UUID · X-Request-ID"]
+          RID --> AUTH{"Route under<br/>/auth/* ?"}
+          AUTH -->|"yes"| AUTHH["Auth Handlers<br/>login · refresh · logout"]
+          AUTH -->|"no"| JWT["JWT Verify<br/>15min access token"]
+          JWT --> ROLE{"Role guard<br/>requireRole()"}
+          ROLE --> SVC["Services<br/>business rules · fees · RBAC"]
+          AUTHH --> AUTHS["Auth Service<br/>Argon2id · token rotation"]
+          SVC --> REPO["Repositories<br/>atomic SQL only"]
+          AUTHS --> DB[("PostgreSQL 16")]
+          REPO --> DB
+          SVC -.->|"after commit<br/>non-blocking"| AUD["Audit Log Service<br/>catch · log · never fail"]
+          AUD -.-> DB
+          DB --> TABLES["users · refresh_tokens<br/>disbursements<br/>idempotency_keys · audit_logs"]
+      </script>
+    </section>
+
+    <!-- ================= IDEMPOTENCY ================= -->
+    <div class="sec-head" id="s-idem"><span class="num">03</span>Idempotency — Safe Retries</div>
+    <p class="sec-desc">
+      <code>POST /disbursements</code> accepts an optional <code>Idempotency-Key</code> (UUID). The key is scoped per user
+      via <code>UNIQUE(user_id, idempotency_key)</code>; the payload is normalized to a fixed field order and SHA-256 hashed.
+      The exact response (status + body) is persisted for 24 hours — never in memory, so replays survive restarts and
+      horizontal scaling. Two simultaneous first uses are serialized by a transaction-scoped advisory lock.
+    </p>
+    <section class="diagram-shell">
+      <p class="diagram-shell__hint">The full create path, including the concurrent-first-use race</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in">+</button>
+          <button type="button" data-action="zoom-out">&minus;</button>
+          <button type="button" data-action="zoom-fit">&#8634;</button>
+          <button type="button" data-action="zoom-one">1:1</button>
+          <button type="button" data-action="zoom-expand">&#x26F6;</button>
+          <span class="zoom-label">…</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+        sequenceDiagram
+          autonumber
+          participant C as Client
+          participant A as API
+          participant DB as PostgreSQL
+          C->>A: POST /disbursements<br/>Idempotency-Key: K
+          A->>DB: lookup (user, K) where not expired
+          alt key exists, same payload hash
+            DB-->>A: stored response
+            A-->>C: 201 + stored body<br/>X-Idempotent-Replayed: true
+          else key exists, different hash
+            A-->>C: 409 IDEMPOTENCY_KEY_REUSED
+          else first use (or expired)
+            A->>DB: BEGIN · pg_advisory_xact_lock(user, K)
+            A->>DB: re-check inside lock
+            A->>DB: delete expired row if present
+            A->>DB: INSERT disbursement (fee from amount)
+            A->>DB: INSERT idempotency_keys<br/>(hash, response, expires +24h)
+            A->>DB: COMMIT (lock released)
+            A-->>C: 201 + fresh body<br/>X-Idempotent-Replayed: false
+            A->>DB: audit log "created" (post-commit, non-blocking)
+          end
+          Note over C,A: concurrent duplicate waits on the advisory lock,<br/>then replays — exactly one row, one audit event
+      </script>
+    </section>
+    <div class="grid cols-3">
+      <div class="card"><span class="tag">guarantee</span><h3>Byte-identical replay</h3><p>The stored response body is returned verbatim with <code>X-Idempotent-Replayed: true</code>. No second disbursement, no second audit event.</p></div>
+      <div class="card"><span class="tag">guarantee</span><h3>Payload mismatch → 409</h3><p>Same key, different normalized payload returns <code>IDEMPOTENCY_KEY_REUSED</code> — the client learns its retry drifted instead of silently double-paying.</p></div>
+      <div class="card"><span class="tag tradeoff">trade-off</span><h3>Storage for certainty</h3><p>Full response bodies are stored for 24h and expired rows are replaced on reuse. A cleanup job is possible but intentionally omitted.</p></div>
+    </div>
+    <div class="callout">
+      <strong>Why not in-memory?</strong> A process-local cache breaks across instances and vanishes on restart — precisely
+      when clients retry most. The unique constraint plus advisory lock makes PostgreSQL the single arbiter, so the
+      guarantee holds no matter how many app instances run.
+    </div>
+
+    <!-- ================= CONCURRENCY ================= -->
+    <div class="sec-head" id="s-conc"><span class="num">04</span>Concurrency — Exactly One Winner</div>
+    <p class="sec-desc">
+      Status transitions use an atomic compare-and-set: the <code>WHERE status = 'PENDING'</code> predicate is evaluated
+      by PostgreSQL while updating. Under a race, the first update locks and changes the row; every other request matches
+      zero rows and gets a typed <code>409 DISBURSEMENT_NOT_PENDING</code> — never a generic 500.
+    </p>
+    <pre><span class="k">UPDATE</span> disbursements
+<span class="k">SET</span> status = $1, approved_by = $2, updated_at = NOW()
+<span class="k">WHERE</span> id = $3
+  <span class="k">AND</span> status = <span class="c">'PENDING'</span>      <span class="c">-- the compare-and-set predicate</span>
+  <span class="k">AND</span> deleted_at <span class="k">IS NULL</span>
+<span class="k">RETURNING</span> *;                  <span class="c">-- zero rows ⇒ follow-up lookup: 404 vs 409</span></pre>
+    <section class="diagram-shell">
+      <p class="diagram-shell__hint">Two admins, one pending disbursement</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in">+</button>
+          <button type="button" data-action="zoom-out">&minus;</button>
+          <button type="button" data-action="zoom-fit">&#8634;</button>
+          <button type="button" data-action="zoom-one">1:1</button>
+          <button type="button" data-action="zoom-expand">&#x26F6;</button>
+          <span class="zoom-label">…</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+        sequenceDiagram
+          autonumber
+          participant A as Admin A
+          participant B as Admin B
+          participant DB as PostgreSQL
+          par simultaneous PATCH /disbursements/:id/status
+            A->>DB: UPDATE … WHERE status='PENDING'
+          and
+            B->>DB: UPDATE … WHERE status='PENDING'
+          end
+          DB-->>A: 1 row returned (row lock won)
+          DB-->>B: 0 rows (predicate no longer matches)
+          A-->>A: 200 + audit "status_changed"
+          B->>DB: follow-up SELECT
+          DB-->>B: row exists, status=APPROVED
+          B-->>B: 409 DISBURSEMENT_NOT_PENDING
+          Note over DB: final state: exactly one transition,<br/>exactly one audit event
+      </script>
+    </section>
+    <div class="grid cols-2">
+      <div class="card"><span class="tag">chosen</span><h3>Optimistic CAS (one round trip)</h3><ul><li>No time-of-check-to-time-of-use window</li><li>Row lock held only for the update itself</li><li>No app-level coordination — scales across instances</li><li>Simple under high contention</li></ul></div>
+      <div class="card"><span class="tag tradeoff">rejected</span><h3>Read-then-write / SELECT FOR UPDATE</h3><ul><li>Read-then-write without a lock has a race window — both requests can read PENDING and both "win"</li><li><code>FOR UPDATE</code> serializes contenders inside a longer transaction and blocks while held</li><li>CAS cost: one follow-up lookup to distinguish 404 from 409</li></ul></div>
+    </div>
+
+    <!-- ================= AUTH ================= -->
+    <div class="sec-head" id="s-authn"><span class="num">05</span>Authentication Lifecycle</div>
+    <p class="sec-desc">
+      Access tokens live 15 minutes; refresh tokens 7 days. Only the <strong>SHA-256 hash</strong> of a refresh token is
+      stored. Refresh <em>rotates</em>: the presented token is revoked and a fresh pair issued. Logout sets
+      <code>revoked_at</code>; any reuse fails with 401. Passwords use Argon2id.
+    </p>
+    <section class="diagram-shell">
+      <p class="diagram-shell__hint">Token states</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in">+</button>
+          <button type="button" data-action="zoom-out">&minus;</button>
+          <button type="button" data-action="zoom-fit">&#8634;</button>
+          <button type="button" data-action="zoom-one">1:1</button>
+          <button type="button" data-action="zoom-expand">&#x26F6;</button>
+          <span class="zoom-label">…</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+        stateDiagram-v2
+          [*] --> Issued: POST /auth/login<br/>(Argon2id verify)
+          Issued --> Active: hash stored<br/>expires_at = now + 7d
+          Active --> Rotated: POST /auth/refresh<br/>old revoked, new pair issued
+          Rotated --> Active: new token active
+          Active --> Revoked: POST /auth/logout<br/>revoked_at = now
+          Active --> Expired: now > expires_at
+          Rotated --> Rejected: reuse attempt → 401
+          Revoked --> Rejected: reuse attempt → 401
+          Expired --> Rejected: 401
+          Rejected --> [*]
+      </script>
+    </section>
+
+    <!-- ================= RBAC ================= -->
+    <div class="sec-head" id="s-rbac"><span class="num">06</span>RBAC Matrix</div>
+    <p class="sec-desc">Enforced server-side by <code>requireRole()</code> pre-handlers — never by the client. Seeded users: <code>superadmin</code>, <code>admin</code>, <code>operator</code>.</p>
+    <div class="table-wrap">
+      <table>
+        <caption>endpoint × role</caption>
+        <thead><tr><th>Endpoint</th><th><span class="pill pub">public</span></th><th><span class="pill op">operator</span></th><th><span class="pill ad">admin</span></th><th><span class="pill sa">superadmin</span></th></tr></thead>
+        <tbody>
+          <tr><td><span class="m">POST /auth/login · /refresh · /logout</span></td><td class="yes">✓</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td><span class="m">GET /health · /documentation</span></td><td class="yes">✓</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td><span class="m">GET /disbursements · GET /:id</span></td><td class="no">401</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td><span class="m">POST /disbursements · /batch</span></td><td class="no">401</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td class="no">401</td><td class="no">403</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td><span class="m">DELETE /disbursements/:id</span> (soft, PENDING only)</td><td class="no">401</td><td class="no">403</td><td class="no">403</td><td class="yes">✓</td></tr>
+          <tr><td><span class="m">GET /audit-logs</span></td><td class="no">401</td><td class="no">403</td><td class="no">403</td><td class="yes">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ================= SCHEMA ================= -->
+    <div class="sec-head" id="s-schema"><span class="num">07</span>Data Model</div>
+    <p class="sec-desc">
+      Five tables, UUID keys throughout. Integrity lives in the database: check constraints on amount, fee, status and
+      role; partial indexes on live (<code>deleted_at IS NULL</code>) rows; audit rows deliberately have <strong>no</strong>
+      foreign key to disbursements so the trail outlives the data.
+    </p>
+    <section class="diagram-shell">
+      <p class="diagram-shell__hint">Entity relationships with key constraints</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in">+</button>
+          <button type="button" data-action="zoom-out">&minus;</button>
+          <button type="button" data-action="zoom-fit">&#8634;</button>
+          <button type="button" data-action="zoom-one">1:1</button>
+          <button type="button" data-action="zoom-expand">&#x26F6;</button>
+          <span class="zoom-label">…</span>
+        </div>
+        <div class="mermaid-viewport"><div class="mermaid mermaid-canvas"></div></div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+        erDiagram
+          users ||--o{ refresh_tokens : "has"
+          users ||--o{ disbursements : "creates"
+          users ||--o{ idempotency_keys : "owns"
+          users {
+            uuid id PK
+            varchar username "UNIQUE"
+            text password_hash "Argon2id"
+            varchar role "CHECK superadmin/admin/operator"
+          }
+          refresh_tokens {
+            uuid id PK
+            uuid user_id FK
+            text token_hash "UNIQUE · sha256 only"
+            timestamptz expires_at "indexed"
+            timestamptz revoked_at "nullable"
+          }
+          disbursements {
+            uuid id PK
+            bigint amount "CHECK >= 10000"
+            integer admin_fee "CHECK IN 2500,5000"
+            varchar status "CHECK PENDING/APPROVED/REJECTED"
+            uuid created_by FK
+            uuid approved_by FK "nullable"
+            timestamptz deleted_at "soft delete"
+          }
+          idempotency_keys {
+            uuid id PK
+            uuid user_id FK "UNIQUE(user_id, key)"
+            uuid idempotency_key
+            text request_hash "sha256 normalized"
+            jsonb response_body "exact replay"
+            timestamptz expires_at "+24h, indexed"
+          }
+          audit_logs {
+            uuid id PK
+            uuid entity_id "NO FK — retention"
+            varchar action "created/status_changed/deleted"
+            jsonb before
+            jsonb after
+            uuid request_id
+          }
+      </script>
+    </section>
+    <div class="grid cols-3">
+      <div class="card"><span class="tag">indexing</span><h3>Partial indexes</h3><p><code>(status, created_at DESC)</code>, <code>(created_at DESC)</code>, <code>(amount)</code> — all <code>WHERE deleted_at IS NULL</code>, matching every list query's filter.</p></div>
+      <div class="card"><span class="tag">integrity</span><h3>Defense in depth</h3><p>App validates with JSON Schema; the database re-checks with constraints. A buggy deploy cannot write a negative amount or an unknown status.</p></div>
+      <div class="card"><span class="tag tradeoff">deliberate</span><h3>No audit FK</h3><p><code>audit_logs.entity_id</code> carries no cascading foreign key — soft-deleted or purged rows must never take the audit trail with them.</p></div>
+    </div>
+
+    <!-- ================= AUDIT ================= -->
+    <div class="sec-head" id="s-audit"><span class="num">08</span>Audit Logging — Honest Non-Blocking</div>
+    <p class="sec-desc">
+      The spec requires audit failure to never block the main operation. The implementation takes the simplest honest
+      reading: commit the primary transaction first, then insert the audit row; on failure, log a structured error with
+      <code>request_id</code>, entity and action — and still return success.
+    </p>
+    <div class="grid cols-2">
+      <div class="card"><span class="tag">what this buys</span><h3>Availability of the money path</h3><p>An audit-table outage can never block an approval. Every mutation — <code>created</code>, <code>status_changed</code>, <code>deleted</code> — is attempted with before/after jsonb snapshots and the originating request id.</p></div>
+      <div class="card"><span class="tag tradeoff">what it costs</span><h3>Possible audit loss</h3><p>A failed insert is lost (only logged). This is documented, not hidden: the production evolution is a transactional outbox — write the event in the same transaction, deliver via a background worker.</p></div>
+    </div>
+    <div class="callout sage">
+      <strong>Observability contract.</strong> Every request emits structured JSON logs carrying <code>reqId</code>, method,
+      path, status and latency; the same id is returned as <code>X-Request-ID</code> on every response — including 4xx/5xx —
+      so a client-reported id greps straight to the full request trace. Passwords, tokens and JWTs are never logged.
+    </div>
+
+    <!-- ================= API ================= -->
+    <div class="sec-head" id="s-api"><span class="num">09</span>API Surface</div>
+    <p class="sec-desc">One response contract everywhere: <code>{ success, data, meta? }</code> or <code>{ success: false, error: { code, message } }</code>. Raw database errors never reach clients.</p>
+    <div class="table-wrap">
+      <table>
+        <caption>endpoints · status codes</caption>
+        <thead><tr><th>Endpoint</th><th>Success</th><th>Error cases</th></tr></thead>
+        <tbody>
+          <tr><td><span class="m">POST /auth/login</span></td><td><span class="m">200</span> token pair (15m / 7d)</td><td><span class="m">400 · 401 · 429</span> (10/min per IP)</td></tr>
+          <tr><td><span class="m">POST /auth/refresh</span></td><td><span class="m">200</span> rotated pair</td><td><span class="m">401</span> revoked/expired/unknown</td></tr>
+          <tr><td><span class="m">POST /auth/logout</span></td><td><span class="m">200</span> revoked</td><td><span class="m">401</span> invalid token</td></tr>
+          <tr><td><span class="m">GET /disbursements</span></td><td><span class="m">200</span> page + meta</td><td><span class="m">400</span> bad filter/date · <span class="m">401</span></td></tr>
+          <tr><td><span class="m">GET /disbursements/:id</span></td><td><span class="m">200</span></td><td><span class="m">404</span> (soft-deleted = not found)</td></tr>
+          <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400 · 401 · 409</span> key reuse</td></tr>
+          <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400</span> any invalid item → nothing created</td></tr>
+          <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td><span class="m">200</span></td><td><span class="m">403 · 404 · 409</span> not pending</td></tr>
+          <tr><td><span class="m">DELETE /disbursements/:id</span></td><td><span class="m">204</span> soft delete</td><td><span class="m">403 · 404 · 409</span></td></tr>
+          <tr><td><span class="m">GET /audit-logs</span></td><td><span class="m">200</span> newest first</td><td><span class="m">403</span> non-superadmin</td></tr>
+          <tr><td><span class="m">GET /health</span></td><td><span class="m">200</span></td><td><span class="m">503</span> database unavailable</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ================= DECISIONS ================= -->
+    <div class="sec-head" id="s-decisions"><span class="num">10</span>Decisions &amp; Trade-offs</div>
+    <div class="table-wrap">
+      <table>
+        <caption>what was chosen, what was rejected, why</caption>
+        <thead><tr><th>Decision</th><th>Chosen</th><th>Rejected</th><th>Reasoning</th></tr></thead>
+        <tbody>
+          <tr><td>Idempotency storage</td><td>PostgreSQL + unique constraint</td><td>in-memory cache, Redis</td><td>Survives restarts and multi-instance deploys; the DB is already the arbiter of record</td></tr>
+          <tr><td>First-use race</td><td><span class="m">pg_advisory_xact_lock(user, key)</span></td><td>insert-first state machine</td><td>Lock auto-releases on commit/rollback; loser re-checks and replays — no orphaned PROCESSING rows</td></tr>
+          <tr><td>Status transition</td><td>atomic conditional UPDATE</td><td>read-then-write, SELECT FOR UPDATE</td><td>One round trip, no TOCTOU window, minimal lock duration</td></tr>
+          <tr><td>Refresh tokens</td><td>hashed storage + rotation</td><td>stateless-only JWTs</td><td>Logout must actually revoke; rotation limits replay window of a leaked token</td></tr>
+          <tr><td>Audit durability</td><td>post-commit, non-blocking</td><td>same-transaction write</td><td>Spec requires non-blocking; loss risk documented, outbox named as the evolution</td></tr>
+          <tr><td>Deletion</td><td>soft delete (<span class="m">deleted_at</span>)</td><td>hard delete</td><td>Financial records must remain recoverable and auditable</td></tr>
+          <tr><td>Validation</td><td>JSON Schema at routes + DB checks</td><td>app-only validation</td><td>Constraints protect against future code paths, not just today's handlers</td></tr>
+          <tr><td>Batch idempotency</td><td>not supported, documented</td><td>per-batch key</td><td>Honest scope cut: header is ignored, README says so explicitly</td></tr>
+          <tr><td>ORM</td><td>Drizzle (typed SQL)</td><td>heavier ORM</td><td>Atomic conditional updates need real SQL, not an abstraction fighting it</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ================= VERIFICATION ================= -->
+    <div class="sec-head" id="s-verify"><span class="num">11</span>Verification Evidence</div>
+    <p class="sec-desc">Every claim above was executed, not assumed. Integration tests run against a real PostgreSQL database — including the two concurrency races.</p>
+    <div class="grid cols-4">
+      <div class="card kpi ok"><div class="value">51</div><div class="label">tests · 9 files · 0 failures</div></div>
+      <div class="card kpi ok"><div class="value">0</div><div class="label">tsc --noEmit errors (strict)</div></div>
+      <div class="card kpi ok"><div class="value">1m06s</div><div class="label">CI: install → migrate → seed → test</div></div>
+      <div class="card kpi ok"><div class="value">✓</div><div class="label">docker compose up --build smoke</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <caption>the tests that matter most</caption>
+        <thead><tr><th>Scenario</th><th>Proof</th></tr></thead>
+        <tbody>
+          <tr><td>Two concurrent approvals</td><td>exactly one <span class="m">200</span> + one <span class="m">409</span>, final status correct, exactly one <span class="m">status_changed</span> audit row</td></tr>
+          <tr><td>Two concurrent creates, same key</td><td>identical bodies, exactly one replayed, one disbursement row, one idempotency row</td></tr>
+          <tr><td>Expired key reuse</td><td>fresh <span class="m">201</span> (not a stale replay), expired row replaced — a real bug the test exposed and fixed</td></tr>
+          <tr><td>Token lifecycle</td><td>login → refresh rotates (old token 401) → logout revokes → reuse 401</td></tr>
+          <tr><td>RBAC</td><td>operator PATCH → 403, admin DELETE → 403, operator audit-logs → 403, superadmin all ✓</td></tr>
+          <tr><td>Soft delete</td><td><span class="m">204</span> → GET 404 → list excludes → row physically present in DB</td></tr>
+          <tr><td>Fee boundaries</td><td>10,000→2500 · 4,999,999→2500 · 5,000,000→5000 · &lt;10,000 and non-integer → 400</td></tr>
+          <tr><td>Rate limiting</td><td>11th login attempt in a minute → <span class="m">429 RATE_LIMITED</span> in the standard error shape</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ================= RUN ================= -->
+    <div class="sec-head" id="s-run"><span class="num">12</span>Run It</div>
+    <pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
+docker compose up -d --build
+docker compose exec api node dist/db/seed.js
+
+<span class="c"># Local</span>
+cp .env.example .env
+nub install && nub run db:migrate && nub run db:seed
+nub run dev        <span class="c"># http://localhost:3000</span>
+nub run test       <span class="c"># 51 tests</span></pre>
+    <div class="grid cols-3">
+      <div class="card"><span class="tag">try it</span><h3>Swagger UI</h3><p><code>GET /documentation</code> — full OpenAPI 3 docs with the Bearer scheme and per-route response schemas.</p></div>
+      <div class="card"><span class="tag">try it</span><h3>Seed credentials</h3><p><code>superadmin/superadmin123</code> · <code>admin/admin123</code> · <code>operator/operator123</code></p></div>
+      <div class="card"><span class="tag">try it</span><h3>See the race</h3><p>Fire two <code>PATCH …/status</code> calls in parallel — one wins with 200, the other gets a clean 409.</p></div>
+    </div>
+
+    <footer>
+      disbursement-api · Fastify 5 + PostgreSQL 16 + Drizzle · 51/51 tests · CI green · generated as a self-contained explainer
+    </footer>
+
+  </div><!-- /main -->
+</div><!-- /wrap -->
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const config = { fitPadding: 28, minHeight: 300, maxHeightPx: 900, maxHeightVh: 0.8, maxInitialZoom: 1.6, minZoom: 0.08, maxZoom: 6, zoomStep: 0.14, readabilityFloor: 0.55 };
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  let activeDrag = null;
+  addEventListener('mousemove', (e) => activeDrag?.onMove(e));
+  addEventListener('mouseup', () => { activeDrag?.onEnd(); activeDrag = null; });
+
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+      fontSize: '15px',
+      primaryColor: isDark ? '#3a2e24' : '#f6e8de',
+      primaryBorderColor: isDark ? '#e08a5f' : '#b3542e',
+      primaryTextColor: isDark ? '#ece4d6' : '#2b2620',
+      secondaryColor: isDark ? '#26332d' : '#e3ede8',
+      secondaryBorderColor: isDark ? '#8fb8a9' : '#4d7c6f',
+      secondaryTextColor: isDark ? '#ece4d6' : '#2b2620',
+      tertiaryColor: isDark ? '#332e20' : '#f7f0dc',
+      tertiaryBorderColor: isDark ? '#d9b655' : '#b08d2e',
+      tertiaryTextColor: isDark ? '#ece4d6' : '#2b2620',
+      lineColor: isDark ? '#a29885' : '#7a7160',
+      noteBkgColor: isDark ? '#2e2921' : '#f7f0dc',
+      noteTextColor: isDark ? '#ece4d6' : '#2b2620',
+      noteBorderColor: isDark ? '#d9b655' : '#b08d2e',
+      actorBkg: isDark ? '#3a2e24' : '#f6e8de',
+      actorBorder: isDark ? '#e08a5f' : '#b3542e',
+      actorTextColor: isDark ? '#ece4d6' : '#2b2620',
+      signalColor: isDark ? '#a29885' : '#7a7160',
+      signalTextColor: isDark ? '#ece4d6' : '#2b2620',
+      labelTextColor: isDark ? '#ece4d6' : '#2b2620',
+      clusterBkg: isDark ? '#26221c' : '#fffdf8',
+      clusterBorder: isDark ? '#a29885' : '#7a7160',
+    }
+  });
+
+  function initDiagram(shell) {
+    const wrap = shell.querySelector('.mermaid-wrap');
+    const viewport = shell.querySelector('.mermaid-viewport');
+    const canvas = shell.querySelector('.mermaid-canvas');
+    const source = shell.querySelector('.diagram-source');
+    const label = shell.querySelector('.zoom-label');
+    if (!wrap || !viewport || !canvas || !source || !label) return;
+
+    let zoom = 1, fitMode = 'contain', panX = 0, panY = 0, svgW = 0, svgH = 0;
+    let sx = 0, sy = 0, spx = 0, spy = 0;
+
+    function constrainPan() {
+      const vpW = viewport.clientWidth, vpH = viewport.clientHeight;
+      const rW = svgW * zoom, rH = svgH * zoom, pad = config.fitPadding;
+      panX = (rW + pad * 2 <= vpW) ? (vpW - rW) / 2 : clamp(panX, vpW - rW - pad, pad);
+      panY = (rH + pad * 2 <= vpH) ? (vpH - rH) / 2 : clamp(panY, vpH - rH - pad, pad);
+    }
+    function applyTransform() {
+      const svg = canvas.querySelector('svg');
+      if (!svg || !svgW) return;
+      constrainPan();
+      svg.style.width = (svgW * zoom) + 'px';
+      svg.style.height = (svgH * zoom) + 'px';
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+      label.textContent = Math.round(zoom * 100) + '%';
+    }
+    function canPan() {
+      return svgW * zoom + config.fitPadding * 2 > viewport.clientWidth
+          || svgH * zoom + config.fitPadding * 2 > viewport.clientHeight;
+    }
+    function fitDiagram() {
+      if (!svgW) return;
+      const aW = Math.max(80, viewport.clientWidth - config.fitPadding * 2);
+      const aH = Math.max(80, viewport.clientHeight - config.fitPadding * 2);
+      zoom = clamp(Math.min(aW / svgW, aH / svgH), config.minZoom, config.maxInitialZoom);
+      fitMode = 'contain';
+      panX = (viewport.clientWidth - svgW * zoom) / 2;
+      panY = (viewport.clientHeight - svgH * zoom) / 2;
+      applyTransform();
+    }
+    function zoomAround(factor, cx, cy) {
+      const next = clamp(zoom * factor, config.minZoom, config.maxZoom);
+      const ratio = next / zoom;
+      panX = cx - ratio * (cx - panX);
+      panY = cy - ratio * (cy - panY);
+      zoom = next; fitMode = 'custom';
+      applyTransform();
+    }
+    function readSvgNaturalSize(svg) {
+      let w = 0, h = 0;
+      if (svg.viewBox?.baseVal?.width > 0) { w = svg.viewBox.baseVal.width; h = svg.viewBox.baseVal.height; }
+      if (!w) { w = parseFloat(svg.getAttribute('width')) || 0; h = parseFloat(svg.getAttribute('height')) || 0; }
+      if (!w) { const b = svg.getBBox(); w = b.width; h = b.height; }
+      if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      return { w, h };
+    }
+    function setAdaptiveHeight() {
+      if (!svgW) return;
+      const usableW = Math.max(280, wrap.getBoundingClientRect().width - 2);
+      const idealH = (svgH / svgW) * usableW + config.fitPadding * 2;
+      const maxVp = Math.floor(innerHeight * config.maxHeightVh);
+      const hardMax = Math.min(config.maxHeightPx, Math.max(config.minHeight + 40, maxVp));
+      wrap.style.height = Math.round(clamp(idealH, config.minHeight, hardMax)) + 'px';
+    }
+    function openInNewTab() {
+      const svg = canvas.querySelector('svg');
+      if (!svg) return;
+      const clone = svg.cloneNode(true);
+      clone.style.width = ''; clone.style.height = '';
+      const bg = isDark ? '#1c1915' : '#f7f4ee';
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90vh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
+      open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
+    }
+    async function render() {
+      try {
+        const code = source.textContent.trim();
+        const id = 'd' + Math.random().toString(36).slice(2, 9);
+        const { svg } = await mermaid.render(id, code);
+        const parsed = new DOMParser().parseFromString(svg, 'text/html');
+        const parsedSvg = parsed.body.querySelector('svg');
+        if (!parsedSvg) { label.textContent = 'render error'; return; }
+        canvas.replaceChildren(document.adoptNode(parsedSvg));
+        const svgNode = canvas.querySelector('svg');
+        const size = readSvgNaturalSize(svgNode);
+        svgW = size.w; svgH = size.h;
+        svgNode.removeAttribute('width'); svgNode.removeAttribute('height');
+        svgNode.style.maxWidth = 'none'; svgNode.style.display = 'block';
+        setAdaptiveHeight();
+        fitDiagram();
+      } catch (err) {
+        console.error('Mermaid render failed:', err);
+        label.textContent = 'error';
+      }
+    }
+
+    const actions = {
+      'zoom-in': () => zoomAround(1 + config.zoomStep, viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-out': () => zoomAround(1 / (1 + config.zoomStep), viewport.clientWidth / 2, viewport.clientHeight / 2),
+      'zoom-fit': fitDiagram,
+      'zoom-one': () => { zoom = 1; fitMode = '1:1'; panX = (viewport.clientWidth - svgW) / 2; panY = (viewport.clientHeight - svgH) / 2; applyTransform(); },
+      'zoom-expand': openInNewTab,
+    };
+    Object.entries(actions).forEach(([a, h]) => wrap.querySelector(`[data-action="${a}"]`)?.addEventListener('click', h));
+    viewport.addEventListener('dblclick', fitDiagram);
+    viewport.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const rect = viewport.getBoundingClientRect();
+        zoomAround(e.deltaY < 0 ? 1 + config.zoomStep : 1 / (1 + config.zoomStep), e.clientX - rect.left, e.clientY - rect.top);
+        return;
+      }
+      if (canPan()) { e.preventDefault(); panX -= e.deltaX; panY -= e.deltaY; applyTransform(); }
+    }, { passive: false });
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-controls') || !canPan()) return;
+      wrap.classList.add('is-panning');
+      sx = e.clientX; sy = e.clientY; spx = panX; spy = panY;
+      e.preventDefault();
+      activeDrag = {
+        onMove: (ev) => { panX = spx + (ev.clientX - sx); panY = spy + (ev.clientY - sy); applyTransform(); },
+        onEnd: () => wrap.classList.remove('is-panning'),
+      };
+    });
+    new ResizeObserver(() => { if (svgW) { setAdaptiveHeight(); fitDiagram(); } }).observe(wrap);
+    render();
+  }
+
+  document.querySelectorAll('.diagram-shell').forEach(initDiagram);
+</script>
+
+<script>
+  (function () {
+    const toc = document.getElementById('toc');
+    const links = toc.querySelectorAll('a');
+    const sections = [];
+    links.forEach((link) => {
+      const el = document.getElementById(link.getAttribute('href').slice(1));
+      if (el) sections.push({ el, link });
+    });
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          links.forEach((l) => l.classList.remove('active'));
+          const match = sections.find((s) => s.el === entry.target);
+          if (match) {
+            match.link.classList.add('active');
+            if (window.innerWidth <= 1000) {
+              match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+          }
+        }
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+    sections.forEach((s) => observer.observe(s.el));
+    links.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const el = document.getElementById(link.getAttribute('href').slice(1));
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.replaceState(null, '', link.getAttribute('href'));
+        }
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
