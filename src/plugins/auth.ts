@@ -55,11 +55,12 @@ export const authPlugin = fp<{ env: Env }>(async (app: FastifyInstance, opts: { 
 
 // nub's store layout does not link the `fastify` peer into @fastify/jwt's
 // package directory, so its `declare module "fastify"` augmentation is not
-// loaded by TypeScript. Restore the request API we rely on here so the
-// augmentation is part of the compilation regardless of install layout.
+// loaded by TypeScript. Restore the request API we rely on here using the
+// package's own exported types, so the declarations merge cleanly when the
+// package's augmentation IS loaded (pnpm layout, CI).
 declare module "fastify" {
   interface FastifyRequest {
-    jwtVerify(): Promise<AccessTokenPayload>;
-    user: AccessTokenPayload;
+    jwtVerify: import("@fastify/jwt").JwtVerifyFunction;
+    user: import("@fastify/jwt").UserType;
   }
 }

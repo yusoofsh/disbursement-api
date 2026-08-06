@@ -26,7 +26,7 @@
     "@fastify/swagger": "^9.8.1",
     "@fastify/swagger-ui": "^6.1.1",
     "argon2": "^0.45.1",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "1.0.0-rc.4",
     "fastify": "^5.11.2",
     "fastify-plugin": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
@@ -37,10 +37,10 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.13.3",
     "@types/pg": "^8.20.4",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "1.0.0-rc.4",
     "tsx": "^4.23.9",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "5.0.0-beta.7"
   },
   "devEngines": {
     "packageManager": {
