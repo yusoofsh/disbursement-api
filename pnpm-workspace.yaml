@@ -1,2 +1,5 @@
 minimumReleaseAgeExclude:
   - tsx@4.23.9
+onlyBuiltDependencies:
+  - argon2
+  - esbuild
