@@ -1,167 +1,50 @@
 # disbursement-api
 
-A production-oriented disbursement service for LintasPay's Senior Backend Developer assessment. The API handles disbursement creation (with idempotent retries), concurrency-safe status transitions, soft delete, JWT authentication with refresh-token rotation, role-based access control, and separate non-blocking audit logging.
+LintasPay Senior Backend Developer assessment — a production-oriented disbursement service: idempotent retries, concurrency-safe status transitions, soft delete, JWT auth with refresh rotation, RBAC, and non-blocking audit logging.
 
-## Stack
+## 🚀 Live demo
 
-- Node.js 22+ (ESM), TypeScript (strict)
-- Fastify 5, Pino structured logging
-- PostgreSQL 16, Drizzle ORM (node-postgres driver)
-- Zod (unit-level validation) + Fastify JSON Schema (route-level validation)
-- JWT via `jsonwebtoken` + `@fastify/jwt`; Argon2id password hashing
-- Vitest for unit and integration tests
-- Package manager: pnpm (repo ships `pnpm-lock.yaml` for upstream/CI/Docker); `nub` is supported for local development via `nub.lock`
+**→ [Interactive demo & technical explainer](https://www.yusoofsh.id/static/disbursement-api/index.html)**
 
-## Architecture
+The demo drives the live API at `https://disbursement.yusoofsh.cloud` and falls back to an in-browser simulator with the same contract (RBAC, idempotent replay, the 409 concurrency loser, soft delete, audit trail, CSV export). Live OpenAPI docs: `GET /documentation` (Swagger UI).
 
-The app is layered: **routes → service → repository**, with business rules and fee calculation in the service/policy layer, handlers only parsing input and mapping results to HTTP responses, and repositories owning SQL. Shared plugins provide JWT authentication (`authenticate`), role guards (`requireRole`), the error handler, and request-context/logging. Every request gets a UUID request id that is propagated through logs and returned as `X-Request-ID` on every response.
-
-Key design decisions (idempotency via PostgreSQL + advisory locks, optimistic concurrency via atomic conditional updates, non-blocking audit logging) are explained in [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## Prerequisites
-
-- Node.js 22+ and pnpm (or `nub` locally), **or** Docker with Docker Compose
-- PostgreSQL 16 (local install or the provided Docker container)
-
-`argon2` ships prebuilt binaries for common platforms (macOS arm64, Linux x64 glibc); on other platforms you may need a C toolchain.
-
-## Environment setup
-
-```bash
-cp .env.example .env
-```
-
-Required: `DATABASE_URL`, plus `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (each at least 32 characters). `NODE_ENV`, `PORT`, `HOST`, `JWT_ACCESS_TTL` (default `15m`), `JWT_REFRESH_TTL` (default `7d`), and `LOG_LEVEL` have defaults. The app fails fast on invalid or missing configuration.
-
-Rate-limit knobs (requests per minute, see [Rate limiting](#rate-limiting)):
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `RATE_LIMIT_MAX` | `200` | Global per-client limit for all routes |
-| `RATE_LIMIT_LOGIN_MAX` | `10` | Stricter per-IP limit for `POST /auth/login` |
-
-## Docker Compose (recommended)
+## Quick start (Docker)
 
 ```bash
 docker compose up -d
-```
-
-This starts `postgres:16-alpine` (volume `pgdata`, `pg_isready` healthcheck) and the API on `http://localhost:3000`
-using the CI-built image `ghcr.io/yusoofsh/disbursement-api:latest` — no local build needed. The API container runs
-migrations automatically on start (`node dist/db/migrate.js && node dist/server.js`). JWT secrets come from your
-`.env` via Compose interpolation, with dev-only defaults that meet the 32-character minimum — replace them before
-anything real. The compose file is `compose.yml` (the modern default; `docker-compose.yml` was retired).
-
-To build from source instead of pulling the image: `docker build -t disbursement-api .` and swap the `image:` line
-for `build: .` — the `Dockerfile` is kept in the repo for that purpose.
-
-Seed the three users once the API is healthy:
-
-```bash
 docker compose exec api node dist/db/seed.js
 ```
 
-(The image ships only production dependencies, so `tsx` is not available inside the container; the compiled seed runs directly. Locally, `pnpm db:seed` is the equivalent.)
-
-Other useful commands:
+API on `http://localhost:3000` — uses the CI-built `ghcr.io/yusoofsh/disbursement-api:latest` image, migrations run automatically on start.
 
 ```bash
-docker compose ps
-docker compose logs -f api
-docker compose down        # keeps the pgdata volume
-docker compose down -v     # also deletes the database volume
-```
-
-## Deploy the GHCR image (e.g. disbursement.yusoofsh.cloud)
-
-CI builds and pushes every `main` push to `ghcr.io/yusoofsh/disbursement-api` (`latest` + commit SHA).
-Any container runtime works; the image runs migrations automatically on start.
-
-```bash
-docker pull ghcr.io/yusoofsh/disbursement-api:latest
-docker run -d --name disbursement-api \
-  -p 3000:3000 \
-  -e DATABASE_URL=postgresql://postgres:postgres@db-host:5432/disbursement \
-  -e JWT_ACCESS_SECRET='<64+ random chars>' \
-  -e JWT_REFRESH_SECRET='<64+ random chars>' \
-  -e CORS_ORIGIN='https://www.yusoofsh.id' \
-  ghcr.io/yusoofsh/disbursement-api:latest
-
-# seed the three users once the DB is migrated
-docker exec -it disbursement-api node dist/db/seed.js
-```
-
-Required env: `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (32+ chars).
-Optional: `PORT`, `HOST`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `RATE_LIMIT_MAX`,
-`RATE_LIMIT_LOGIN_MAX`, `CORS_ORIGIN`, `LOG_LEVEL`.
-
-**CORS for the interactive demo page:** the explainer at
-`https://www.yusoofsh.id/static/disbursement-api/index.html` calls the API from the browser, so the
-API must list the page's origin in `CORS_ORIGIN` (comma-separated; empty disables CORS, `*` allows all).
-The demo console is dual-mode: it drives the real API when reachable and otherwise falls back to a
-clearly-labeled in-browser simulator (same contract — RBAC, idempotent replay, 409 race loser, soft
-delete, audit trail), so the section works even while the API is down. It accepts
-`?api=https://disbursement.yusoofsh.cloud` (the default) or `?api=http://127.0.0.1:3000` for local testing,
-and a toolbar button toggles between live and simulator manually.
-
-Suggested TLS setup for the subdomain: Caddy or Dokploy reverse proxy → the container's port 3000;
-use strong generated JWT secrets (never the compose defaults) and restrict the DB to the same network.
-
-## Local setup without Docker
-
-```bash
-# 1. PostgreSQL 16 must be running locally
+# local, without Docker
 createdb disbursement
-
-# 2. Install and configure
-cp .env.example .env       # point DATABASE_URL at your local Postgres
-pnpm install               # local alternative: nub install
-
-# 3. Create the schema and seed users
-pnpm db:migrate
-pnpm db:seed
-
-# 4. Run
-pnpm dev                   # http://localhost:3000
+cp .env.example .env
+pnpm install && pnpm db:migrate && pnpm db:seed
+pnpm dev
 ```
 
-## Commands
+## Stack
 
-| Command | Description |
-|---|---|
-| `pnpm dev` | Start with `tsx watch` |
-| `pnpm build` | Compile TypeScript to `dist/` |
-| `pnpm start` | Run the compiled app (`node dist/server.js`) |
-| `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm test` | Run all Vitest suites |
-| `pnpm test:unit` | Unit tests only |
-| `pnpm test:integration` | Integration tests only |
-| `pnpm db:generate` | Generate Drizzle migrations from `src/db/schema.ts` |
-| `pnpm db:migrate` | Apply migrations (`tsx src/db/migrate.ts`) |
-| `pnpm db:seed` | Seed users (`tsx src/db/seed.ts`) |
-
-`pnpm exec <bin>` runs any local binary (e.g. `pnpm exec tsc`). The scripts are plain `package.json` entries, so the `nub run <script>` equivalents work locally (`nub run build`, `nub test`, …) unchanged.
+Node 22 · TypeScript (strict) · Fastify 5 · PostgreSQL 16 · Drizzle ORM · Zod + JSON Schema · Vitest · pnpm (upstream/CI/Docker) with `nub` supported locally.
 
 ## Endpoints
 
 | Method | Path | Roles | Notes |
 |---|---|---|---|
-| `POST` | `/auth/login` | public | Returns access (15m) + refresh (7d) tokens |
-| `POST` | `/auth/refresh` | public | Rotates the refresh token; revokes the presented one |
-| `POST` | `/auth/logout` | public | Revokes the presented refresh token |
-| `GET` | `/health` | public | `200` or `503 DATABASE_UNAVAILABLE` |
-| `GET` | `/disbursements` | operator, admin, superadmin | Pagination, search, status/date filters, sorting; excludes soft-deleted |
-| `GET` | `/disbursements/:id` | operator, admin, superadmin | Single disbursement; soft-deleted = `404` |
-| `GET` | `/disbursements/export` | operator, admin, superadmin | Excel-compatible CSV of all rows matching the list filters |
-| `POST` | `/disbursements` | operator, admin, superadmin | Optional `Idempotency-Key` (UUID); `201` |
-| `POST` | `/disbursements/batch` | operator, admin, superadmin | 1–100 creates atomically; no `Idempotency-Key` support; `201` |
-| `PATCH` | `/disbursements/:id/status` | admin, superadmin | `PENDING` → `APPROVED`/`REJECTED`; exactly one winner under concurrency |
-| `DELETE` | `/disbursements/:id` | superadmin | Soft delete, `PENDING` only, `204` |
-| `GET` | `/audit-logs` | superadmin | Filters: `entity_id`, `action`, `date_from`, `date_to`; newest first |
+| `POST` | `/auth/login` · `/refresh` · `/logout` | public | token pair (15m/7d), rotation, revocation |
+| `GET` | `/health` | public | `200` / `503` |
+| `GET` | `/disbursements` | operator+ | pagination, search, filters, sorting |
+| `GET` | `/disbursements/:id` | operator+ | soft-deleted = `404` |
+| `GET` | `/disbursements/export` | operator+ | Excel-compatible CSV (same filters) |
+| `POST` | `/disbursements` | operator+ | optional `Idempotency-Key`; `201` |
+| `POST` | `/disbursements/batch` | operator+ | 1–100 creates, all-or-nothing |
+| `PATCH` | `/disbursements/:id/status` | admin+ | `PENDING` → approved/rejected; one winner under concurrency |
+| `DELETE` | `/disbursements/:id` | superadmin | soft delete, `PENDING` only, `204` |
+| `GET` | `/audit-logs` | superadmin | newest first, filterable |
 
-Interactive API documentation (OpenAPI) is served at `http://localhost:3000/documentation` (Swagger UI) and `http://localhost:3000/documentation/json` (OpenAPI 3 JSON).
-
-All responses follow `{ "success": true, "data": ..., "meta": ... }` or `{ "success": false, "error": { "code", "message" } }`, and every response carries `X-Request-ID`.
+Every response carries `X-Request-ID` and uses `{ success, data, meta? }` / `{ success: false, error: { code, message } }`.
 
 ## Seed credentials
 
@@ -171,177 +54,46 @@ All responses follow `{ "success": true, "data": ..., "meta": ... }` or `{ "succ
 | `admin` | `admin123` | admin |
 | `operator` | `operator123` | operator |
 
-## Example API calls
+## Commands
 
-```bash
-# 1. Login (operator can create; use admin/superadmin for later steps)
-curl -s http://localhost:3000/auth/login \
-  -H 'content-type: application/json' \
-  -d '{"username":"operator","password":"operator123"}'
-# → data.access_token, data.refresh_token, expires_in: 900
-
-export ACCESS_TOKEN='<access_token>'
-export ADMIN_TOKEN='<admin access_token>'
-export SUPERADMIN_TOKEN='<superadmin access_token>'
-
-# 2. Create with an Idempotency-Key (UUID v4, lowercase)
-export KEY=$(uuidgen | tr 'A-Z' 'a-z')
-curl -i -X POST http://localhost:3000/disbursements \
-  -H "authorization: Bearer $ACCESS_TOKEN" \
-  -H 'content-type: application/json' \
-  -H "idempotency-key: $KEY" \
-  -d '{"recipient_name":"Budi Santoso","account_number":"1234567890","bank_code":"BCA","amount":1250000,"note":"Pembayaran supplier"}'
-
-# 3. Replay the exact same request → identical body, X-Idempotent-Replayed: true,
-#    no second disbursement, no extra audit event
-curl -i -X POST http://localhost:3000/disbursements \
-  -H "authorization: Bearer $ACCESS_TOKEN" \
-  -H 'content-type: application/json' \
-  -H "idempotency-key: $KEY" \
-  -d '{"recipient_name":"Budi Santoso","account_number":"1234567890","bank_code":"BCA","amount":1250000,"note":"Pembayaran supplier"}'
-
-# 4. Status transition (admin/superadmin)
-curl -X PATCH http://localhost:3000/disbursements/$DISBURSEMENT_ID/status \
-  -H "authorization: Bearer $ADMIN_TOKEN" \
-  -H 'content-type: application/json' \
-  -d '{"status":"APPROVED","note":"Sudah diverifikasi"}'
-
-# 5. Soft delete (superadmin, PENDING only)
-curl -i -X DELETE http://localhost:3000/disbursements/$DISBURSEMENT_ID \
-  -H "authorization: Bearer $SUPERADMIN_TOKEN"
-
-# 6. Audit logs (superadmin)
-curl http://localhost:3000/audit-logs?action=status_changed&limit=10 \
-  -H "authorization: Bearer $SUPERADMIN_TOKEN"
-
-# 7. Batch create (1-100 items, all-or-nothing; Idempotency-Key is NOT supported)
-curl -X POST http://localhost:3000/disbursements/batch \
-  -H "authorization: Bearer $ACCESS_TOKEN" \
-  -H 'content-type: application/json' \
-  -d '{"items":[{"recipient_name":"Budi Santoso","account_number":"1234567890","bank_code":"BCA","amount":1250000},{"recipient_name":"Siti Aminah","account_number":"0987654321","bank_code":"BCA","amount":6000000}]}'
-# → 201 {"success":true,"data":{"created":2,"items":[...]}}
-```
-
-## Batch disbursements
-
-`POST /disbursements/batch` creates 1–100 disbursements in a single request. It is available to the same roles as single create (operator, admin, superadmin).
-
-Request body:
-
-```json
-{
-  "items": [
-    {
-      "recipient_name": "Budi Santoso",
-      "account_number": "1234567890",
-      "bank_code": "BCA",
-      "amount": 1250000,
-      "note": "Pembayaran supplier"
-    }
-  ]
-}
-```
-
-Rules:
-
-- Each item follows the exact single-create rules (required fields, `amount >= 10000` integer, per-item `admin_fee` of 2500/5000 based on the item's own amount).
-- The whole request is validated by the Fastify JSON schema first: any invalid item rejects the entire request with `400` and nothing is created.
-- Valid items are inserted in **one transaction** (all-or-nothing): a failure rolls back the whole batch.
-- All items start `PENDING`; `created_by` comes from the JWT.
-- One audit entry (`action: "created"`) is written per disbursement, non-blocking, after the transaction commits.
-- `Idempotency-Key` is **not supported** on this endpoint. The header is ignored (no replay behavior, no rejection); send duplicate batches at your own risk.
-
-Response (`201 Created`):
-
-```json
-{
-  "success": true,
-  "data": {
-    "created": 2,
-    "items": [ "<disbursement object>", "<disbursement object>" ]
-  }
-}
-```
-
-## Rate limiting
-
-Per-user rate limiting is provided by `@fastify/rate-limit` with a 1-minute window:
-
-- `POST /disbursements` and `POST /disbursements/batch` get **30 requests/minute per user**
-  (`RATE_LIMIT_CREATE_MAX`) as specified in the assessment.
-- All other routes get a generous limit (`RATE_LIMIT_MAX`, default `120`/minute per user).
-- `POST /auth/login` gets a stricter limit (`RATE_LIMIT_LOGIN_MAX`, default `10`/minute per IP) to protect credential checking.
-- Buckets are keyed by the authenticated user id (`sub` claim) for routes that carry a Bearer token, falling back to the client IP for public routes (login, refresh, logout, health, docs). The JWT is only decoded for keying — forged tokens still fail authentication.
-- Exceeding a limit returns `429` with the standard error contract: `{ "success": false, "error": { "code": "RATE_LIMITED", "message": "..." } }`, plus rate-limit headers.
-
-Both values are configurable via environment variables, so deployments can raise them and tests can lower them.
-
-## CSV export
-
-`GET /disbursements/export` returns every disbursement matching the same filters as the list endpoint
-(`search`, `status`, `date_from`, `date_to`, `sort_by`, `sort_order` — no pagination) as an
-**Excel-compatible CSV**: UTF-8 BOM, RFC 4180 quoting (commas/quotes/newlines inside fields are safe),
-CRLF line endings, ISO-8601 timestamps, and a `Content-Disposition: attachment` filename like
-`disbursements-2026-08-06-22-30-00.csv`.
-
-```bash
-curl -OJ "http://localhost:3000/disbursements/export?status=PENDING" \
-  -H "authorization: Bearer $ACCESS_TOKEN"
-```
-
-Open the downloaded file directly in Excel or Google Sheets. A real `.xlsx` writer was deliberately
-not added: CSV with a BOM covers Excel's encoding edge cases with zero extra dependencies, and the
-same filters guarantee the export matches what the UI/API shows.
-
-## Swagger/OpenAPI
-
-- Swagger UI: `GET http://localhost:3000/documentation`
-- OpenAPI 3 JSON: `GET http://localhost:3000/documentation/json`
-
-The docs are public (no auth) and include a Bearer security scheme. Routes are tagged (`auth`, `disbursements`, `audit-logs`, `health`); request schemas, summaries, and the optional `Idempotency-Key` header on `POST /disbursements` are documented.
-
-## Database schema
-
-Five tables, all with UUID primary keys:
-
-| Table | Key points |
+| Command | Description |
 |---|---|
-| `users` | `username` unique; `role` check (`superadmin`/`admin`/`operator`); Argon2id hash in `password_hash` |
-| `refresh_tokens` | `token_hash` unique (only the SHA-256 hash of a refresh token is stored); FKs `user_id` → `users`; indexes on `user_id` and `expires_at`; `revoked_at` for revocation |
-| `disbursements` | Checks: `amount >= 10000`, `admin_fee IN (2500, 5000)`, `status IN ('PENDING','APPROVED','REJECTED')`; FKs `created_by`/`approved_by` → `users`; partial indexes on `(status, created_at DESC)`, `(created_at DESC)`, `(amount)` where `deleted_at IS NULL`; index on `created_by` |
-| `idempotency_keys` | `UNIQUE (user_id, idempotency_key)`; stores `request_hash`, `response_status`, `response_body` (jsonb), `resource_id` → `disbursements`; `expires_at` index |
-| `audit_logs` | `entity_id` with **no** FK (audit retention must outlive rows); `before`/`after` jsonb; `request_id`; indexes on `(entity_id, created_at DESC)`, `(action, created_at DESC)`, `(created_at DESC)` |
+| `pnpm dev` | run with `tsx watch` |
+| `pnpm build` / `pnpm start` | compile / run `dist/` |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` (·`:unit` ·`:integration`) | Vitest suites |
+| `pnpm db:generate` · `db:migrate` · `db:seed` | Drizzle migrations / seed |
 
-## Idempotency behavior
+## Highlights
 
-- `Idempotency-Key` is optional and must be a UUID; invalid values → `400 INVALID_IDEMPOTENCY_KEY`.
-- Keys are user-scoped (`UNIQUE (user_id, idempotency_key)`) and persisted in PostgreSQL for 24 hours — never in memory, so replays survive restarts and multiple instances.
-- The payload is normalized (fixed key order) and SHA-256 hashed for comparison.
-- A replay returns the stored response byte-for-byte with `X-Idempotent-Replayed: true` and creates no side effects (no second row, no audit event).
-- Same key, different payload → `409 IDEMPOTENCY_KEY_REUSED`.
-- Simultaneous first uses are serialized by a transaction-scoped `pg_advisory_xact_lock` on `(user_id, key)`; the loser re-checks inside the lock and replays.
-- Expired keys are ignored and treated as a fresh request. Because the expired row still occupies the `(user_id, key)` unique slot, the create path deletes it inside the advisory-lock transaction and inserts a new row — the key is genuinely reusable and no unique-violation can occur.
-- `POST /disbursements/batch` does **not** support `Idempotency-Key`; the header is ignored there.
+- **Idempotency** — optional `Idempotency-Key` (UUID), user-scoped, persisted 24h in PostgreSQL, advisory-lock serialized; replay returns the stored response byte-for-byte with `X-Idempotent-Replayed: true`; key reuse with a different payload → `409`.
+- **Concurrency** — status changes use `UPDATE … WHERE status = 'PENDING'` (atomic compare-and-set); losers get `404` or `409`.
+- **Rate limiting** — 30/min per user on create/batch; 10/min per IP on login; configurable via env.
+- **CSV export** — `GET /disbursements/export` → UTF-8 BOM, RFC 4180 quoting, CRLF, ISO timestamps, attachment header; opens in Excel/Sheets.
+- **Soft delete** — rows stay recoverable/auditable; `GET` → `404`, list excludes them.
+- **Non-blocking audit** — written post-commit; a failure never blocks the business op (logged).
 
-## Concurrency behavior
+## Deploy
 
-Status changes use `UPDATE ... WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL RETURNING *` — an atomic compare-and-set. Under concurrent requests exactly one succeeds; losers get a follow-up lookup that distinguishes `404 NOT_FOUND` (missing/soft-deleted) from `409 DISBURSEMENT_NOT_PENDING` (already terminal). Only one `status_changed` audit event is written. Rationale and trade-offs are in ARCHITECTURE.md.
+Every `main` push is built and pushed by CI to `ghcr.io/yusoofsh/disbursement-api` (`latest` + SHA, amd64/arm64). Runs migrations on start; needs `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (32+ chars), optional `PORT`/`HOST`/`CORS_ORIGIN`/rate-limit/`LOG_LEVEL`.
 
-## Audit-log failure trade-off
+```bash
+docker pull ghcr.io/yusoofsh/disbursement-api:latest
+docker run -d --name disbursement-api -p 3000:3000 \
+  -e DATABASE_URL=postgresql://postgres:postgres@db-host:5432/disbursement \
+  -e JWT_ACCESS_SECRET='<64+ random>' \
+  -e JWT_REFRESH_SECRET='<64+ random>' \
+  -e CORS_ORIGIN='https://www.yusoofsh.id' \
+  ghcr.io/yusoofsh/disbursement-api:latest
+docker exec disbursement-api node dist/db/seed.js
+```
 
-Audit entries are written **after** the primary transaction commits. If the insert fails, the error is caught and logged as a structured server error (with `request_id`, entity id, action, and failure details), and the main operation still succeeds. This satisfies the "audit must not block the business operation" requirement, at the cost of possible audit loss during failures. A production evolution would be a transactional outbox with a background worker.
+For the demo page's live console, list the page origin in `CORS_ORIGIN`.
 
-## Assumptions and known limitations
+## Docs
 
-- `date_from`/`date_to` are interpreted as UTC (`T00:00:00.000Z` through `T23:59:59.999Z`), not local time.
-- `search` uses `ILIKE '%term%'` on `recipient_name` without a trigram (`pg_trgm`) index — fine at assessment scale, not for large datasets.
-- Refresh tokens are rotated on every refresh; the presented token is revoked, so a reused/rotated token is rejected. There is no explicit reuse-detection beyond that revocation.
-- Audit events can be lost if the post-commit insert fails (documented trade-off above).
-- Expired idempotency rows are not cleaned up by a background job; they are removed lazily when the same key is reused.
-- `amount` must be a JSON integer (bigint); non-integers are rejected by the route schema.
-- The production Docker image contains only runtime dependencies, so in-container one-off commands use the compiled `dist/` entry points (`node dist/db/migrate.js`, `node dist/db/seed.js`) rather than `tsx`.
-- The repo ships `pnpm-lock.yaml` (used by upstream, CI, and the Docker image via `pnpm install --frozen-lockfile`) and `nub.lock` (used for local development with `nub`).
+- [ARCHITECTURE.md](ARCHITECTURE.md) — idempotency, concurrency, audit trade-offs
+- [CONTEXT.md](CONTEXT.md) — assessment spec & decisions
+- Swagger UI `GET /documentation` · OpenAPI JSON `GET /documentation/json`
 
-## AI/tooling disclosure
-
-This repository was developed with AI assistance. All implementation decisions and trade-offs are documented in ARCHITECTURE.md and this README; the assessment spec lives in CONTEXT.md.
+*Developed with AI assistance; all decisions and trade-offs are documented above.*
