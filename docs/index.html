@@ -242,6 +242,7 @@
     font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim);
     margin-bottom: 12px;
   }
+  #demo-status-text { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
   .dot.ok { background: var(--secondary); }
   .dot.bad { background: var(--danger); }
@@ -261,48 +262,74 @@
   }
   .demo-toolbar button:hover { border-color: var(--primary); color: var(--primary); }
   .demo-toolbar .api-badge {
-    margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
-    max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-left: auto; min-width: 0; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .demo-forms {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
     gap: 10px; padding: 12px;
   }
-  .demo-form { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .demo-form { display: grid; grid-template-columns: 1fr; gap: 6px; min-width: 0; }
   .demo-form h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-family: var(--font-mono); }
   .demo-form input, .demo-form select {
     font-family: var(--font-mono); font-size: 11.5px;
     padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px;
     background: var(--surface); color: var(--text);
+    width: 100%; min-width: 0; /* inputs default to intrinsic ~20ch width — must shrink to the grid track */
   }
   .demo-form input:focus, .demo-form select:focus { outline: none; border-color: var(--primary); }
-  .demo-form .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  /* pairs stack when the column is too narrow — fixed 1fr 1fr made inputs overlap */
+  .demo-form .row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; }
+  .demo-form .row2 > * { min-width: 0; }
   .demo-form button.run {
     font-family: var(--font-mono); font-size: 11px; font-weight: 600;
     padding: 6px 10px; border: none; border-radius: 5px;
     background: var(--primary); color: #fff; cursor: pointer;
+    width: 100%;
   }
   .demo-form button.run:hover { filter: brightness(1.08); }
   .demo-out {
     border-top: 1px solid var(--border); padding: 12px;
-    max-height: 420px; overflow-y: auto;
     display: flex; flex-direction: column; gap: 8px;
     font-family: var(--font-mono); font-size: 11.5px;
   }
-  .demo-entry { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .demo-entry { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; min-width: 0; }
   .demo-entry .head {
-    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-    padding: 6px 10px; background: var(--surface2); color: var(--text-dim);
+    display: flex; gap: 6px 10px; align-items: center; flex-wrap: wrap;
+    padding: 6px 10px; background: var(--surface2); color: var(--text-dim); min-width: 0;
+    cursor: pointer; user-select: none;
   }
-  .demo-entry .head .code { color: var(--text); }
+  .demo-entry .head:hover { color: var(--text); }
+  .demo-entry .head .tw { font-size: 8px; flex-shrink: 0; transition: transform 0.15s; }
+  .demo-entry.open .head .tw { transform: rotate(90deg); }
+  .demo-entry .head .m { color: var(--primary); font-weight: 600; flex-shrink: 0; }
+  .demo-entry .head .code {
+    color: var(--text); min-width: 0; flex: 1 1 auto;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    direction: rtl; text-align: left; unicode-bidi: plaintext; /* clip the left; keep the tail (id, /status, (replay)) */
+  }
   .demo-entry .status { font-weight: 600; padding: 1px 7px; border-radius: 4px; }
   .demo-entry .status.s2 { background: var(--secondary-dim); color: var(--secondary); }
   .demo-entry .status.s4 { background: var(--primary-dim); color: var(--primary); }
   .demo-entry .status.s5 { background: rgba(166, 58, 58, 0.12); color: var(--danger); }
-  .demo-entry pre { margin: 0; border: none; border-radius: 0; padding: 8px 10px; font-size: 10.5px; max-height: 200px; overflow: auto; background: var(--bg); }
+  .demo-entry pre {
+    display: none; /* collapsed: rows stay one line, newest opens, click toggles */
+    margin: 0; border: none; border-radius: 0; padding: 8px 10px; font-size: 10.5px;
+    max-height: 200px; overflow: auto; background: var(--bg);
+    white-space: pre; /* no wrapping: long lines scroll horizontally inside an expanded row */
+  }
+  .demo-entry.open pre { display: block; }
   .demo-entry pre.err { color: var(--danger); }
+  .demo-empty { color: var(--text-dim); font-size: 11.5px; opacity: 0.75; padding: 2px; }
   .demo-tip { font-size: 12px; color: var(--text-dim); line-height: 1.65; margin-top: 12px; }
   .demo-tip code { font-family: var(--font-mono); font-size: 11px; background: var(--primary-dim); color: var(--primary); padding: 1px 5px; border-radius: 3px; }
+  .mode-pill {
+    font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: 1px; padding: 2px 8px; border-radius: 20px;
+    background: var(--surface2); color: var(--text-dim);
+  }
+  .mode-pill.live { background: var(--secondary-dim); color: var(--secondary); }
+  .mode-pill.sim { background: var(--primary-dim); color: var(--primary); }
 
   footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
 
@@ -736,19 +763,23 @@
     <div class="sec-head" id="s-demo"><span class="num">12</span>Live Demo</div>
     <p class="sec-desc">
       This console drives the <strong>deployed API</strong> — same endpoints, same auth, same race behavior.
-      Tokens live only in this page's memory (never localStorage). The API domain is
-      <code>disbursement.yusoofsh.cloud</code>; until it is deployed you can point the console at a local
-      instance with <code>?api=http://127.0.0.1:3000</code>.
+      If <code>disbursement.yusoofsh.cloud</code> can't be reached, it automatically switches to a clearly-labeled
+      <strong>in-browser simulator</strong> that implements the same contract — seeded users, RBAC, idempotent
+      replay, the 409 race loser, soft delete and audit trail — so everything below is demonstrable either way.
+      Tokens live only in this page's memory (never localStorage). Point the console at another instance with
+      <code>?api=http://127.0.0.1:3000</code>.
     </p>
     <div class="demo-shell">
       <div class="demo-status">
         <span class="dot" id="demo-dot"></span>
         <span id="demo-status-text">checking API…</span>
+        <span class="mode-pill" id="demo-mode">probing</span>
       </div>
       <div class="demo-console">
         <div class="demo-toolbar">
           <button type="button" data-demo="health">Health</button>
           <button type="button" data-demo="logout">Logout</button>
+          <button type="button" data-demo="flip">use simulator</button>
           <span class="api-badge" id="demo-api-badge"></span>
         </div>
         <div class="demo-forms">
@@ -790,13 +821,15 @@
             <button class="run" type="button" data-demo="audit">GET /audit-logs</button>
           </div>
         </div>
-        <div class="demo-out" id="demo-out"></div>
+        <div class="demo-out" id="demo-out"><div class="demo-empty" id="demo-empty">responses appear here — log in, then create a disbursement.</div></div>
       </div>
       <p class="demo-tip">
-        <strong>Notes:</strong> the deployed app must list this page's origin in <code>CORS_ORIGIN</code>
-        (see <a href="#s-run">Run &amp; Deploy</a>). Login is rate-limited to 10/min per IP.
-        Replay demonstrates <code>X-Idempotent-Replayed: true</code> with a byte-identical body;
-        approving twice demonstrates the <code>409 DISBURSEMENT_NOT_PENDING</code> loser path.
+        <strong>Notes:</strong> in <em>live api</em> mode the deployed app must list this page's origin in
+        <code>CORS_ORIGIN</code> (see <a href="#s-run">Run &amp; Deploy</a>), and login is rate-limited to
+        10/min per IP; <em>simulator</em> mode keeps its state in this page only and resets on reload.
+        Either way, replay demonstrates <code>X-Idempotent-Replayed: true</code> with a byte-identical body,
+        and approving twice demonstrates the <code>409 DISBURSEMENT_NOT_PENDING</code> loser path.
+        Response rows are collapsible — the newest expands, older ones fold away; click a row to toggle it.
       </p>
     </div>
 
@@ -1041,106 +1074,326 @@ nub run test       <span class="c"># 51 tests</span></pre>
     const params = new URLSearchParams(location.search);
     const API_BASE = (params.get("api") || "https://disbursement.yusoofsh.cloud").replace(/\/+$/, "");
 
+    let mode = "probing"; // "probing" | "live" | "sim"
     let accessToken = null;
     let refreshToken = null;
     let lastIdempotencyKey = null;
-    let lastCreatedId = null;
 
     const dot = document.getElementById("demo-dot");
     const statusText = document.getElementById("demo-status-text");
+    const modePill = document.getElementById("demo-mode");
     const badge = document.getElementById("demo-api-badge");
     const out = document.getElementById("demo-out");
+    const emptyEl = document.getElementById("demo-empty");
     badge.textContent = API_BASE;
 
+    /* ---------- in-browser simulator: same contract as the deployed API ----------
+       Mirrors the auth lifecycle, RBAC order, idempotent replay, PENDING-only
+       transitions, soft delete and audit trail of the real service. State is
+       page-local and vanishes on reload. */
+    const sim = (() => {
+      const uuid = () => crypto.randomUUID();
+      const now = () => new Date().toISOString();
+      const users = [
+        { id: uuid(), username: "superadmin", password: "superadmin123", role: "superadmin" },
+        { id: uuid(), username: "admin", password: "admin123", role: "admin" },
+        { id: uuid(), username: "operator", password: "operator123", role: "operator" },
+      ];
+      const disbursements = new Map();
+      const idemKeys = new Map(); // userId + "\n" + key -> { hash, status, body }
+      const auditLogs = [];
+      const access = new Map();  // token -> userId
+      const refresh = new Map(); // token -> { userId, revoked }
+
+      const payloadHash = (p) => JSON.stringify({
+        recipient_name: p.recipient_name, account_number: p.account_number,
+        bank_code: p.bank_code, amount: p.amount, note: p.note ?? null,
+      });
+      const toApi = (d) => ({
+        id: d.id, recipient_name: d.recipient_name, account_number: d.account_number,
+        bank_code: d.bank_code, amount: d.amount, admin_fee: d.admin_fee, note: d.note,
+        status: d.status, created_by: d.created_by, approved_by: d.approved_by,
+        created_at: d.created_at, updated_at: d.updated_at, deleted_at: d.deleted_at,
+      });
+      const respond = (status, body, replayed) => ({
+        status, reqId: uuid(), replayed: replayed ?? null,
+        text: body === undefined ? "" : JSON.stringify(body),
+      });
+      const failRes = (status, code, message) => respond(status, { success: false, error: { code, message } });
+      const okRes = (data, status, meta) => respond(status || 200, meta ? { success: true, data, meta } : { success: true, data });
+      const forbidden = () => failRes(403, "FORBIDDEN", "You do not have permission to perform this action.");
+      const audit = (action, actor, before, after) => {
+        auditLogs.unshift({
+          id: uuid(), entity_id: (after || before).id, action,
+          actor_id: actor ? actor.id : null, actor_username: actor ? actor.username : "unknown",
+          before, after, request_id: uuid(), created_at: now(),
+        });
+      };
+
+      async function route(method, rawPath, { body, token, idempotencyKey } = {}) {
+        await new Promise((r) => setTimeout(r, 120 + Math.random() * 200)); // latency realism
+        const [path, qs] = rawPath.split("?");
+        const query = new URLSearchParams(qs || "");
+        const entityMatch = path.match(/^\/disbursements\/([0-9a-fA-F-]{36})$/);
+        const statusMatch = path.match(/^\/disbursements\/([0-9a-fA-F-]{36})\/status$/);
+
+        if (method === "GET" && path === "/health") return okRes({ status: "ok" });
+
+        if (method === "POST" && path === "/auth/login") {
+          const u = users.find((x) => x.username === (body && body.username));
+          if (!u || u.password !== (body && body.password)) return failRes(401, "UNAUTHORIZED", "Invalid username or password.");
+          const at = uuid();
+          const rt = uuid();
+          access.set(at, u.id);
+          refresh.set(rt, { userId: u.id, revoked: false });
+          return okRes({ access_token: at, refresh_token: rt, token_type: "Bearer", expires_in: 900 });
+        }
+        if (method === "POST" && path === "/auth/logout") {
+          const rec = body && refresh.get(body.refresh_token);
+          if (rec) rec.revoked = true;
+          return okRes({ message: "Logged out successfully." });
+        }
+
+        // Everything below requires a valid access token.
+        const uid = token && access.get(token);
+        const me = users.find((u) => u.id === uid);
+        if (!me) return failRes(401, "UNAUTHORIZED", "Authentication is required or the token is invalid.");
+
+        if (method === "GET" && path === "/disbursements") {
+          const limit = Math.min(100, Math.max(1, Number(query.get("limit")) || 20));
+          const page = Math.max(1, Number(query.get("page")) || 1);
+          const live = [...disbursements.values()].filter((d) => !d.deleted_at)
+            .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+          const rows = live.slice((page - 1) * limit, page * limit).map(toApi);
+          return okRes(rows, 200, { page, limit, total: live.length, total_pages: Math.ceil(live.length / limit) });
+        }
+
+        if (method === "GET" && entityMatch) {
+          const d = disbursements.get(entityMatch[1]);
+          if (!d || d.deleted_at) return failRes(404, "NOT_FOUND", "Disbursement not found.");
+          return okRes(toApi(d));
+        }
+
+        if (method === "POST" && path === "/disbursements") {
+          const p = body || {};
+          for (const k of ["recipient_name", "account_number", "bank_code", "amount"]) {
+            if (p[k] === undefined || p[k] === null || p[k] === "") {
+              return failRes(400, "VALIDATION_ERROR", "body must have required property '" + k + "'");
+            }
+          }
+          if (!Number.isInteger(p.amount) || p.amount < 10000) {
+            return failRes(400, "VALIDATION_ERROR", "body/amount must be an integer >= 10000");
+          }
+          if (idempotencyKey) {
+            const seen = idemKeys.get(me.id + "\n" + idempotencyKey);
+            if (seen) {
+              if (seen.hash !== payloadHash(p)) {
+                return failRes(409, "IDEMPOTENCY_KEY_REUSED", "The idempotency key was already used with a different request payload.");
+              }
+              return respond(seen.status, seen.body, "true");
+            }
+          }
+          const row = {
+            id: uuid(), recipient_name: p.recipient_name, account_number: p.account_number,
+            bank_code: p.bank_code, amount: p.amount, admin_fee: p.amount < 5000000 ? 2500 : 5000,
+            note: p.note ?? null, status: "PENDING", created_by: me.id, approved_by: null,
+            created_at: now(), updated_at: now(), deleted_at: null,
+          };
+          disbursements.set(row.id, row);
+          const resBody = { success: true, data: toApi(row) };
+          if (idempotencyKey) idemKeys.set(me.id + "\n" + idempotencyKey, { hash: payloadHash(p), status: 201, body: resBody });
+          audit("created", me, null, toApi(row));
+          return respond(201, resBody, "false");
+        }
+
+        if (method === "PATCH" && statusMatch) {
+          if (me.role !== "admin" && me.role !== "superadmin") return forbidden();
+          if (!body || (body.status !== "APPROVED" && body.status !== "REJECTED")) {
+            return failRes(400, "VALIDATION_ERROR", "body/status must be one of APPROVED, REJECTED");
+          }
+          const d = disbursements.get(statusMatch[1]);
+          if (!d || d.deleted_at) return failRes(404, "NOT_FOUND", "Disbursement not found.");
+          if (d.status !== "PENDING") return failRes(409, "DISBURSEMENT_NOT_PENDING", "Only pending disbursements can be updated.");
+          const before = toApi(d);
+          d.status = body.status;
+          d.approved_by = me.id;
+          if (body.note) d.note = body.note;
+          d.updated_at = now();
+          audit("status_changed", me, before, toApi(d));
+          return okRes(toApi(d));
+        }
+
+        if (method === "DELETE" && entityMatch) {
+          if (me.role !== "superadmin") return forbidden();
+          const d = disbursements.get(entityMatch[1]);
+          if (!d || d.deleted_at) return failRes(404, "NOT_FOUND", "Disbursement not found.");
+          if (d.status !== "PENDING") return failRes(409, "DISBURSEMENT_NOT_PENDING", "Only pending disbursements can be deleted.");
+          const before = toApi(d);
+          d.deleted_at = now();
+          d.updated_at = now();
+          audit("deleted", me, before, toApi(d));
+          return respond(204, undefined);
+        }
+
+        if (method === "GET" && path === "/audit-logs") {
+          if (me.role !== "superadmin") return forbidden();
+          const limit = Math.min(100, Math.max(1, Number(query.get("limit")) || 20));
+          const rows = auditLogs.slice(0, limit);
+          return okRes(rows, 200, { page: 1, limit, total: auditLogs.length, total_pages: Math.ceil(auditLogs.length / limit) });
+        }
+
+        return failRes(404, "NOT_FOUND", "The requested resource was not found.");
+      }
+
+      return { route };
+    })();
+
+    /* ---------- transport: live fetch, or the simulator when the API is down ---------- */
+    async function liveTransport(method, path, { body, token, idempotencyKey } = {}) {
+      // Only declare JSON when a body is actually sent — Fastify 400s on an
+      // empty body with content-type: application/json (broke DELETE).
+      const headers = {};
+      if (body !== undefined) headers["content-type"] = "application/json";
+      if (token) headers.authorization = "Bearer " + token;
+      if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
+      const res = await fetch(API_BASE + path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return {
+        status: res.status,
+        reqId: res.headers.get("x-request-id"),
+        replayed: res.headers.get("x-idempotent-replayed"),
+        text: await res.text(),
+      };
+    }
+
+    const transport = (method, path, opts) =>
+      mode === "live" ? liveTransport(method, path, opts) : sim.route(method, path, opts);
+
+    /* ---------- status + rendering helpers ---------- */
     function setStatus(ok, text) {
-      dot.className = "dot" + (ok ? " ok" : " bad");
+      dot.className = "dot" + (ok === true ? " ok" : ok === false ? " bad" : "");
       statusText.textContent = text;
+    }
+
+    function setMode(m) {
+      mode = m;
+      accessToken = null;
+      refreshToken = null;
+      modePill.textContent = m === "live" ? "live api" : m === "sim" ? "simulator" : "probing";
+      modePill.className = "mode-pill" + (m === "live" ? " live" : m === "sim" ? " sim" : "");
+      const flipBtn = document.querySelector('[data-demo="flip"]');
+      if (flipBtn) flipBtn.textContent = m === "sim" ? "retry live api" : "use simulator";
     }
 
     function esc(s) {
       return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     }
 
-    function entry(method, path, status, headers, bodyText) {
-      const time = new Date().toLocaleTimeString();
-      const cls = status >= 500 ? "s5" : status >= 400 ? "s4" : "s2";
-      const reqId = headers ? (headers.get("x-request-id") || "") : "";
-      const replayed = headers ? headers.get("x-idempotent-replayed") : null;
+    /* Log accordion: one compact row per entry; the newest is expanded, older
+       ones collapse automatically, so long sessions stay scannable. */
+    let openEntry = null;
+    function setOpen(el, open) {
+      el.className = open ? "demo-entry open" : "demo-entry";
+      if (open) {
+        if (openEntry && openEntry !== el) setOpen(openEntry, false);
+        openEntry = el;
+      } else if (openEntry === el) {
+        openEntry = null;
+      }
+    }
+
+    function appendEntry(headText, preText, isErr) {
       const el = document.createElement("div");
       el.className = "demo-entry";
       const head = document.createElement("div");
       head.className = "head";
-      head.innerHTML =
-        "<span>" + esc(time) + "</span><span class='code'>" + esc(method) + " " + esc(path) + "</span>" +
-        "<span class='status " + cls + "'>" + status + "</span>" +
-        (reqId ? "<span>req " + esc(reqId.slice(0, 8)) + "</span>" : "") +
-        (replayed ? "<span style='color:var(--secondary)'>replayed=" + esc(replayed) + "</span>" : "");
+      head.innerHTML = "<span class='tw'>&#9656;</span>" + headText;
+      head.addEventListener("click", () => setOpen(el, !el.className.includes(" open")));
       const pre = document.createElement("pre");
-      let text;
-      try { text = JSON.stringify(JSON.parse(bodyText), null, 2); } catch { text = bodyText || ""; }
-      pre.textContent = text;
-      if (status >= 400) pre.className = "err";
+      pre.textContent = preText;
+      if (isErr) pre.className = "err";
       el.appendChild(head);
       el.appendChild(pre);
       out.prepend(el);
+      setOpen(el, true);
+      if (emptyEl) emptyEl.style.display = "none";
+    }
+
+    function entry({ method, path, status, reqId, replayed, text: bodyText }) {
+      const cls = status >= 500 ? "s5" : status >= 400 ? "s4" : "s2";
+      const headText =
+        "<span>" + esc(new Date().toLocaleTimeString()) + "</span>" +
+        "<span class='m'>" + esc(method) + "</span>" +
+        "<span class='code'>" + esc(path) + "</span>" +
+        "<span class='status " + cls + "'>" + status + "</span>" +
+        (reqId ? "<span>req " + esc(String(reqId).slice(0, 8)) + "</span>" : "") +
+        (replayed ? "<span style='color:var(--secondary)'>replayed=" + esc(replayed) + "</span>" : "");
+      let text;
+      try { text = JSON.stringify(JSON.parse(bodyText), null, 2); } catch { text = bodyText || ""; }
+      appendEntry(headText, text, status >= 400);
     }
 
     function fail(method, path, err) {
-      const el = document.createElement("div");
-      el.className = "demo-entry";
-      const pre = document.createElement("pre");
-      pre.className = "err";
-      pre.textContent = method + " " + path + "\n" + (err && err.message ? err.message : String(err));
-      el.appendChild(pre);
-      out.prepend(el);
+      const headText =
+        "<span>" + esc(new Date().toLocaleTimeString()) + "</span>" +
+        "<span class='m'>" + esc(method) + "</span>" +
+        "<span class='code'>" + esc(path) + "</span>" +
+        "<span class='status s5'>error</span>";
+      appendEntry(headText, err && err.message ? err.message : String(err), true);
     }
 
-    async function call(method, path, { body, token } = {}) {
-      // Only declare JSON when a body is actually sent — Fastify 400s on an
-      // empty body with content-type: application/json (broke DELETE).
-      const headers = {};
-      if (body !== undefined) headers["content-type"] = "application/json";
-      if (token) headers.authorization = "Bearer " + token;
-      let res;
+    async function call(method, path, opts, displayPath) {
+      let r;
       try {
-        res = await fetch(API_BASE + path, {
-          method,
-          headers,
-          body: body === undefined ? undefined : JSON.stringify(body),
-        });
+        r = await transport(method, path, opts);
       } catch (err) {
-        fail(method, path, err);
+        fail(method, displayPath || path, err);
         return null;
       }
-      const text = await res.text();
-      entry(method, path, res.status, res.headers, text);
-      if (text) { try { res.json = () => Promise.resolve(JSON.parse(text)); } catch { /* keep original */ } }
-      return res;
+      entry({ method, path: displayPath || path, status: r.status, reqId: r.reqId, replayed: r.replayed, text: r.text });
+      return r;
+    }
+
+    async function probe() {
+      setMode("probing");
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      try {
+        const res = await fetch(API_BASE + "/health", { signal: ctrl.signal });
+        if (res.ok) {
+          setMode("live");
+          setStatus(true, "API reachable at " + API_BASE);
+          return;
+        }
+      } catch { /* fall through to the simulator */ } finally {
+        clearTimeout(timer);
+      }
+      setMode("sim");
+      setStatus(false, "API not reachable — using the in-browser simulator (same contract)");
     }
 
     async function login() {
       const username = document.getElementById("d-user").value;
       const password = document.getElementById("d-pass").value;
-      const res = await call("POST", "/auth/login", { body: { username, password } });
-      if (!res) return;
-      if (res.status === 200) {
-        const data = res.json ? (await res.json()).data : null;
+      const r = await call("POST", "/auth/login", { body: { username, password } });
+      if (!r) return;
+      if (r.status === 200) {
+        const data = JSON.parse(r.text).data;
         accessToken = data.access_token;
         refreshToken = data.refresh_token;
-        setStatus(true, "authenticated as " + username + " · access 15m · refresh 7d");
-        if (data) entry("info", "session", 200, null, JSON.stringify({ access_token: data.access_token.slice(0, 24) + "…", refresh_token: data.refresh_token.slice(0, 24) + "…", expires_in: data.expires_in }, null, 2));
+        setStatus(true, "authenticated as " + username + (mode === "sim" ? " (simulator)" : "") + " · access 15m · refresh 7d");
+        entry({ method: "info", path: "session", status: 200, reqId: null, replayed: null, text: JSON.stringify({ access_token: data.access_token.slice(0, 24) + "…", refresh_token: data.refresh_token.slice(0, 24) + "…", expires_in: data.expires_in }, null, 2) });
       } else {
-        setStatus(false, "login failed (" + res.status + ")");
+        setStatus(false, "login failed (" + r.status + ")");
       }
     }
 
     function requireAuth() {
       if (!accessToken) {
-        out.prepend(Object.assign(document.createElement("div"), { className: "demo-entry" }));
-        const pre = document.createElement("pre");
-        pre.className = "err";
-        pre.textContent = "Not authenticated — click Login first.";
-        out.querySelector(".demo-entry").appendChild(pre);
+        fail("auth", "not authenticated", new Error("Not authenticated — click Login first."));
         return false;
       }
       return true;
@@ -1155,35 +1408,29 @@ nub run test       <span class="c"># 51 tests</span></pre>
         amount: Number(document.getElementById("d-amount").value),
         note: document.getElementById("d-note").value || undefined,
       };
-      const headers = { "content-type": "application/json", authorization: "Bearer " + accessToken };
-      if (replay) {
-        if (!lastIdempotencyKey) {
-          fail("POST", "/disbursements (replay)", new Error('No key in memory — click "Create (new key)" first.'));
-          return;
-        }
-        headers["idempotency-key"] = lastIdempotencyKey;
-      } else {
-        lastIdempotencyKey = crypto.randomUUID();
-        headers["idempotency-key"] = lastIdempotencyKey;
+      if (replay && !lastIdempotencyKey) {
+        fail("POST", "/disbursements (replay)", new Error('No key in memory — click "Create (new key)" first.'));
+        return;
       }
-      let res;
-      try {
-        res = await fetch(API_BASE + "/disbursements", { method: "POST", headers, body: JSON.stringify(payload) });
-      } catch (err) { fail("POST", "/disbursements" + (replay ? " (replay)" : ""), err); return; }
-      const text = await res.text();
-      entry("POST", "/disbursements" + (replay ? " (replay)" : ""), res.status, res.headers, text);
-      if (res.status === 201 && text) {
-        const json = JSON.parse(text);
-        lastCreatedId = json.data.id;
-        document.getElementById("d-id").value = lastCreatedId;
+      if (!replay) lastIdempotencyKey = crypto.randomUUID();
+      const r = await call(
+        "POST", "/disbursements",
+        { body: payload, token: accessToken, idempotencyKey: lastIdempotencyKey },
+        "/disbursements" + (replay ? " (replay)" : ""),
+      );
+      if (r && r.status === 201 && r.text) {
+        document.getElementById("d-id").value = JSON.parse(r.text).data.id;
       }
     }
 
     const actions = {
       health: async () => {
-        const res = await call("GET", "/health");
-        if (res && res.status === 200) setStatus(true, "API reachable at " + API_BASE);
-        else setStatus(false, "API unreachable — deploy it (see Run & Deploy) or use ?api=…");
+        const r = await call("GET", "/health");
+        if (r && r.status === 200) {
+          setStatus(mode === "sim" ? null : true, mode === "sim" ? "simulator healthy (in-browser)" : "API reachable at " + API_BASE);
+        } else {
+          setStatus(false, "unreachable — use the simulator or deploy the API (see Run & Deploy)");
+        }
       },
       login,
       logout: async () => {
@@ -1192,6 +1439,15 @@ nub run test       <span class="c"># 51 tests</span></pre>
         accessToken = null;
         refreshToken = null;
         setStatus(false, "logged out — tokens cleared");
+      },
+      flip: async () => {
+        if (mode === "sim") {
+          setStatus(null, "probing " + API_BASE + " …");
+          await probe();
+        } else {
+          setMode("sim");
+          setStatus(null, "simulator mode — all actions below now run in-browser, same contract");
+        }
       },
       create: () => create(false),
       replay: () => create(true),
@@ -1223,18 +1479,17 @@ nub run test       <span class="c"># 51 tests</span></pre>
     document.querySelectorAll("[data-demo]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const fn = actions[btn.dataset.demo];
-        if (fn) void fn();
+        if (!fn) return;
+        if (mode === "probing" && btn.dataset.demo !== "flip") {
+          setStatus(null, "still probing the API — one moment…");
+          return;
+        }
+        void fn();
       });
     });
 
-    // Initial reachability probe.
-    void (async () => {
-      try {
-        const res = await fetch(API_BASE + "/health", { method: "GET" });
-        if (res.ok) { setStatus(true, "API reachable at " + API_BASE); return; }
-      } catch { /* fallthrough */ }
-      setStatus(false, "API not reachable yet — deploy it (see Run & Deploy) or open with ?api=http://127.0.0.1:3000");
-    })();
+    // Probe the real API first; unreachable → clearly-labeled simulator mode.
+    void probe();
   })();
 </script>
 

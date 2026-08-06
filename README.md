@@ -98,8 +98,11 @@ Optional: `PORT`, `HOST`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `RATE_LIMIT_MAX`,
 **CORS for the interactive demo page:** the explainer at
 `https://www.yusoofsh.id/static/disbursement-api/index.html` calls the API from the browser, so the
 API must list the page's origin in `CORS_ORIGIN` (comma-separated; empty disables CORS, `*` allows all).
-The demo console degrades gracefully — it shows "API not reachable" and accepts
-`?api=https://disbursement.yusoofsh.cloud` (the default) or `?api=http://127.0.0.1:3000` for local testing.
+The demo console is dual-mode: it drives the real API when reachable and otherwise falls back to a
+clearly-labeled in-browser simulator (same contract — RBAC, idempotent replay, 409 race loser, soft
+delete, audit trail), so the section works even while the API is down. It accepts
+`?api=https://disbursement.yusoofsh.cloud` (the default) or `?api=http://127.0.0.1:3000` for local testing,
+and a toolbar button toggles between live and simulator manually.
 
 Suggested TLS setup for the subdomain: Caddy or Dokploy reverse proxy → the container's port 3000;
 use strong generated JWT secrets (never the compose defaults) and restrict the DB to the same network.
