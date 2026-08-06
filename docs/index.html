@@ -389,7 +389,7 @@
       The design answers each with a database-backed guarantee rather than application-level hope.
     </p>
     <div class="grid cols-4">
-      <div class="card kpi ok"><div class="value">51/51</div><div class="label">tests passing (9 files)</div></div>
+      <div class="card kpi ok"><div class="value">70/70</div><div class="label">tests passing (14 files)</div></div>
       <div class="card kpi ok"><div class="value">CI ✓</div><div class="label">GitHub Actions green on clean runner</div></div>
       <div class="card kpi"><div class="value">5</div><div class="label">tables · constraints + partial indexes</div></div>
       <div class="card kpi"><div class="value">9</div><div class="label">endpoints · OpenAPI documented</div></div>
@@ -704,8 +704,8 @@
           <tr><td><span class="m">GET /disbursements</span></td><td><span class="m">200</span> page + meta</td><td><span class="m">400</span> bad filter/date · <span class="m">401</span></td></tr>
           <tr><td><span class="m">GET /disbursements/:id</span></td><td><span class="m">200</span></td><td><span class="m">404</span> (soft-deleted = not found)</td></tr>
           <tr><td><span class="m">GET /disbursements/export</span></td><td><span class="m">200</span> CSV attachment</td><td><span class="m">400 · 401</span> bad filter / unauthenticated</td></tr>
-          <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400 · 401 · 409</span> key reuse</td></tr>
-          <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400</span> any invalid item → nothing created</td></tr>
+          <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400 · 401 · 409 · 429</span> key reuse · 30/min per user</td></tr>
+          <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400 · 429</span> invalid item · 30/min per user</td></tr>
           <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td><span class="m">200</span></td><td><span class="m">403 · 404 · 409</span> not pending</td></tr>
           <tr><td><span class="m">DELETE /disbursements/:id</span></td><td><span class="m">204</span> soft delete</td><td><span class="m">403 · 404 · 409</span></td></tr>
           <tr><td><span class="m">GET /audit-logs</span></td><td><span class="m">200</span> newest first</td><td><span class="m">403</span> non-superadmin</td></tr>
@@ -755,7 +755,7 @@
           <tr><td>RBAC</td><td>operator PATCH → 403, admin DELETE → 403, operator audit-logs → 403, superadmin all ✓</td></tr>
           <tr><td>Soft delete</td><td><span class="m">204</span> → GET 404 → list excludes → row physically present in DB</td></tr>
           <tr><td>Fee boundaries</td><td>10,000→2500 · 4,999,999→2500 · 5,000,000→5000 · &lt;10,000 and non-integer → 400</td></tr>
-          <tr><td>Rate limiting</td><td>11th login attempt in a minute → <span class="m">429 RATE_LIMITED</span> in the standard error shape</td></tr>
+          <tr><td>Rate limiting</td><td>11th login attempt in a minute → <span class="m">429 RATE_LIMITED</span>; a user's 31st create in a minute is limited while a different user (same IP) still succeeds</td></tr>
         </tbody>
       </table>
     </div>
