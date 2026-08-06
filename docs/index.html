@@ -95,6 +95,16 @@
     padding-bottom: 10px; margin-bottom: 8px;
     border-bottom: 1px solid var(--border);
   }
+  .toc-group {
+    font-family: var(--font-mono);
+    font-size: 8.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text-dim);
+    opacity: 0.7;
+    padding: 10px 8px 3px;
+    margin-top: 4px;
+  }
+  .toc-group:first-child { padding-top: 0; margin-top: 0; }
   .toc a {
     display: block;
     font-size: 11.5px;
@@ -115,6 +125,20 @@
   .subtitle { color: var(--text-dim); font-family: var(--font-mono); font-size: 12.5px; margin-bottom: 8px; }
   .repo-link { font-family: var(--font-mono); font-size: 12px; color: var(--primary); text-decoration: none; }
   .repo-link:hover { text-decoration: underline; }
+  .demo-cta {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    background: var(--primary);
+    color: var(--bg) !important;
+    font-family: var(--font-mono);
+    font-size: 13px; font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .demo-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.24); }
 
   .sec-head {
     font-size: 22px; font-weight: 700; letter-spacing: -0.3px;
@@ -345,7 +369,7 @@
       grid-row: auto;
     }
     .toc::-webkit-scrollbar { display: none; }
-    .toc-title { display: none; }
+    .toc-title, .toc-group { display: none; }
     .toc a { white-space: nowrap; flex-shrink: 0; border-left: none; border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; padding: 6px 10px; font-size: 10.5px; }
     .toc a.active { border-left: none; border-bottom-color: var(--primary); background: var(--surface); }
     .main { padding-top: 20px; }
@@ -362,17 +386,24 @@
     <div class="toc-title">Contents</div>
     <a href="#s-overview">Overview</a>
     <a href="#s-arch">System Architecture</a>
+    <div class="toc-group">The design</div>
     <a href="#s-idem">Idempotency</a>
     <a href="#s-conc">Concurrency</a>
     <a href="#s-authn">Auth Lifecycle</a>
     <a href="#s-rbac">RBAC Matrix</a>
+    <div class="toc-group">The data</div>
     <a href="#s-schema">Data Model</a>
     <a href="#s-audit">Audit Logging</a>
+    <div class="toc-group">The interface</div>
     <a href="#s-api">API Surface</a>
+    <div class="toc-group">The judgment</div>
     <a href="#s-decisions">Decisions &amp; Trade-offs</a>
+    <div class="toc-group">The proof</div>
     <a href="#s-verify">Verification</a>
-    <a href="#s-demo">Live Demo</a>
+    <div class="toc-group">The deploy</div>
     <a href="#s-run">Run &amp; Deploy</a>
+    <div class="toc-group">The demo</div>
+    <a href="#s-demo">Live Demo</a>
   </nav>
 
   <div class="main">
@@ -380,6 +411,7 @@
     <h1 class="animate" style="--i:0">disbursement-api</h1>
     <p class="subtitle animate" style="--i:1">LintasPay · Senior Backend Developer assessment · technical explainer</p>
     <p class="animate" style="--i:2"><a class="repo-link" href="https://github.com/yusoofsh/disbursement-api">github.com/yusoofsh/disbursement-api</a></p>
+    <p class="animate" style="--i:3"><a class="demo-cta" href="#s-demo">🚀 Try the live demo</a></p>
 
     <!-- ================= OVERVIEW ================= -->
     <div class="sec-head animate" id="s-overview"><span class="num">01</span>Overview</div>
@@ -735,10 +767,10 @@
     </div>
 
     <!-- ================= VERIFICATION ================= -->
-    <div class="sec-head" id="s-verify"><span class="num">11</span>Verification Evidence</div>
+    <div class="sec-head" id="s-verify"><span class="num">11</span>Verification</div>
     <p class="sec-desc">Every claim above was executed, not assumed. Integration tests run against a real PostgreSQL database — including the two concurrency races.</p>
     <div class="grid cols-4">
-      <div class="card kpi ok"><div class="value">51</div><div class="label">tests · 9 files · 0 failures</div></div>
+      <div class="card kpi ok"><div class="value">70</div><div class="label">tests · 14 files · 0 failures</div></div>
       <div class="card kpi ok"><div class="value">0</div><div class="label">tsc --noEmit errors (strict)</div></div>
       <div class="card kpi ok"><div class="value">1m06s</div><div class="label">CI: install → migrate → seed → test</div></div>
       <div class="card kpi ok"><div class="value">✓</div><div class="label">docker compose up --build smoke</div></div>
@@ -760,8 +792,25 @@
       </table>
     </div>
 
+    <!-- ================= RUN ================= -->
+    <div class="sec-head" id="s-run"><span class="num">12</span>Run &amp; Deploy</div>
+<pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
+docker compose up -d          <span class="c"># uses ghcr.io/yusoofsh/disbursement-api:latest</span>
+docker compose exec api node dist/db/seed.js
+
+<span class="c"># Local</span>
+cp .env.example .env
+pnpm install && pnpm db:migrate && pnpm db:seed
+pnpm dev           <span class="c"># http://localhost:3000</span>
+pnpm test          <span class="c"># 70 tests</span></pre>
+    <div class="grid cols-3">
+      <div class="card"><span class="tag">try it</span><h3>Swagger UI</h3><p><code>GET /documentation</code> — full OpenAPI 3 docs with the Bearer scheme and per-route response schemas.</p></div>
+      <div class="card"><span class="tag">try it</span><h3>Seed credentials</h3><p><code>superadmin/superadmin123</code> · <code>admin/admin123</code> · <code>operator/operator123</code></p></div>
+      <div class="card"><span class="tag">try it</span><h3>See the race</h3><p>Fire two <code>PATCH …/status</code> calls in parallel — one wins with 200, the other gets a clean 409.</p></div>
+    </div>
+
     <!-- ================= LIVE DEMO ================= -->
-    <div class="sec-head" id="s-demo"><span class="num">12</span>Live Demo</div>
+    <div class="sec-head" id="s-demo"><span class="num">13</span>Live Demo</div>
     <p class="sec-desc">
       This console drives the <strong>deployed API</strong> — same endpoints, same auth, same race behavior.
       If <code>disbursement.yusoofsh.cloud</code> can't be reached, it automatically switches to a clearly-labeled
@@ -834,23 +883,6 @@
         <em>export</em> returns the same Excel-compatible CSV (<code>GET /disbursements/export</code>) as the API.
         Response rows are collapsible — the newest expands, older ones fold away; click a row to toggle it.
       </p>
-    </div>
-
-    <!-- ================= RUN ================= -->
-    <div class="sec-head" id="s-run"><span class="num">13</span>Run &amp; Deploy</div>
-<pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
-docker compose up -d          <span class="c"># uses ghcr.io/yusoofsh/disbursement-api:latest</span>
-docker compose exec api node dist/db/seed.js
-
-<span class="c"># Local</span>
-cp .env.example .env
-pnpm install && pnpm db:migrate && pnpm db:seed
-pnpm dev           <span class="c"># http://localhost:3000</span>
-pnpm test          <span class="c"># 70 tests</span></pre>
-    <div class="grid cols-3">
-      <div class="card"><span class="tag">try it</span><h3>Swagger UI</h3><p><code>GET /documentation</code> — full OpenAPI 3 docs with the Bearer scheme and per-route response schemas.</p></div>
-      <div class="card"><span class="tag">try it</span><h3>Seed credentials</h3><p><code>superadmin/superadmin123</code> · <code>admin/admin123</code> · <code>operator/operator123</code></p></div>
-      <div class="card"><span class="tag">try it</span><h3>See the race</h3><p>Fire two <code>PATCH …/status</code> calls in parallel — one wins with 200, the other gets a clean 409.</p></div>
     </div>
 
     <footer>
