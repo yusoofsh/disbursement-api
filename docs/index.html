@@ -420,15 +420,6 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
     white-space: pre-wrap; overflow-wrap: break-word; color: var(--text);
   }
-  .demo-result #result-continue {
-    justify-self: start; width: auto;
-    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-    padding: 6px 14px; border: none; border-radius: 8px;
-    background: var(--primary); color: #fff; cursor: pointer;
-    transition: background 0.2s, filter 0.2s, transform 0.1s;
-  }
-  .demo-result #result-continue:hover { filter: brightness(1.08); }
-  .demo-result #result-continue:active { transform: scale(0.98); }
   .demo-out {
     border-top: 1px solid var(--border); padding: 12px;
     display: flex; flex-direction: column; gap: 8px;
@@ -1010,7 +1001,6 @@ pnpm test          <span class="c"># 70 tests</span></pre>
           <div class="result-title">Result</div>
           <div class="result-line"><span class="result-status" id="result-status"></span><span class="result-headers" id="result-headers"></span></div>
           <pre class="result-body" id="result-body"></pre>
-          <button class="run" type="button" id="result-continue">Continue →</button>
         </div>
         <div class="demo-out" id="demo-out"><div class="demo-empty" id="demo-empty">responses appear here - log in, then create a disbursement.</div></div>
       </div>
@@ -1287,7 +1277,6 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     const resultStatus = document.getElementById("result-status");
     const resultHeaders = document.getElementById("result-headers");
     const resultBody = document.getElementById("result-body");
-    const resultContinue = document.getElementById("result-continue");
 
     function setStep(n, scroll) {
       currentStep = n;
@@ -1298,22 +1287,21 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     function markDone(n) {
       stepEls.find((el) => Number(el.dataset.step) === n)?.classList.add("done");
     }
-    function showResult(status, statusText, headers, bodyText, continueLabel) {
+    function showResult(status, statusText, headers, bodyText) {
       const ok = typeof status === "number" ? status < 400 : status;
       resultStatus.textContent = statusText;
       resultStatus.className = "result-status " + (ok ? "ok" : "err");
       resultHeaders.textContent = headers || "";
       resultBody.textContent = bodyText || "";
-      resultContinue.textContent = continueLabel || "Continue →";
       resultPanel.hidden = false;
     }
-    function resultFromCall(r, method, path, continueLabel) {
+    function resultFromCall(r, method, path) {
       if (!r) return;
       const ok = r.status < 400;
       const statusText = (ok ? "✓ " : "✗ ") + r.status + " " + method + " " + path;
       const headers = [r.replayed ? "X-Idempotent-Replayed: " + r.replayed : null, r.reqId ? "x-request-id: " + String(r.reqId).slice(0, 8) : null]
         .filter(Boolean).join(" ,  ");
-      showResult(r.status, statusText, headers, r.text, continueLabel);
+      showResult(r.status, statusText, headers, r.text);
     }
 
     /* ---------- in-browser simulator: same contract as the deployed API ----------
@@ -1632,10 +1620,10 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         setStatus(true, "authenticated as " + username + (mode === "sim" ? " (simulator)" : "") + ", access 15m, refresh 7d");
         entry({ method: "info", path: "session", status: 200, reqId: null, replayed: null, text: JSON.stringify({ access_token: data.access_token.slice(0, 24) + "…", refresh_token: data.refresh_token.slice(0, 24) + "…", expires_in: data.expires_in }, null, 2) });
         markDone(1);
-        showResult(200, "✓ 200 Authenticated as " + username, "access 15m, refresh 7d, Bearer", JSON.stringify(data, null, 2), "Continue to create →");
+        showResult(200, "✓ 200 Authenticated as " + username, "access 15m, refresh 7d, Bearer", JSON.stringify(data, null, 2));
       } else {
         setStatus(false, "login failed (" + r.status + ")");
-        showResult(r.status, "✗ " + r.status + " Login failed", null, r.text, "Try again");
+        showResult(r.status, "✗ " + r.status + " Login failed", null, r.text);
       }
     }
 
@@ -1673,7 +1661,6 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         showResult(
           201, "✓ 201 Created " + (replay ? "(replayed)" : ""), "X-Idempotent-Replayed: " + r.replayed,
           JSON.stringify(data, null, 2),
-          "Continue to concurrency test →",
         );
       }
     }
@@ -1726,7 +1713,6 @@ pnpm test          <span class="c"># 70 tests</span></pre>
           won ? "✓ Exactly one winner - " + statuses.join(" / ") : "✗ " + statuses.join(" / "),
           "two parallel PATCH /status calls",
           JSON.stringify({ statuses, note: won ? "one 200, the other 409 DISBURSEMENT_NOT_PENDING (loser path)" : "no 200 - inspect the responses" }, null, 2),
-          "Continue to inspect →",
         );
       },
       delete: async () => {
@@ -1779,11 +1765,6 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     stepEls.forEach((el) => {
       el.addEventListener("click", () => setStep(Number(el.dataset.step), true));
     });
-    resultContinue.addEventListener("click", () => {
-      const next = currentStep < 4 ? currentStep + 1 : 1;
-      setStep(next, true);
-    });
-
     // Start the scenario with step 1 (Authenticate) selected.
     setStep(1, false);
 
