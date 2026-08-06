@@ -138,7 +138,9 @@ export async function buildApp(env: Env): Promise<App> {
   const disbursementService = new DisbursementService(db, disbursementRepository, auditLogService);
 
   await app.register(authRoutes(authService, { rateLimitLoginMax: env.RATE_LIMIT_LOGIN_MAX }));
-  await app.register(disbursementRoutes(disbursementService));
+  await app.register(
+    disbursementRoutes(disbursementService, { rateLimitCreateMax: env.RATE_LIMIT_CREATE_MAX }),
+  );
   await app.register(auditLogRoutes(auditLogService));
 
   app.get(

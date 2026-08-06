@@ -9,6 +9,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { calculateAdminFee, canChangeStatus, canCreateDisbursement, canDeleteDisbursement } from "./disbursement.policy.js";
 import { DisbursementRepository } from "./disbursement.repository.js";
 import type { CreateDisbursementInput, ListQuery, UpdateStatusInput } from "./disbursement.schema.js";
+import { buildCsv } from "./disbursement.export.js";
 
 export interface Actor {
   id: string;
@@ -83,6 +84,17 @@ export class DisbursementService {
         total_pages: Math.ceil(total / query.limit),
       },
     };
+  }
+
+  /**
+   * CSV export of the rows matching the same filters as the list endpoint.
+   * Excel-compatible: UTF-8 BOM, RFC 4180 quoting, CRLF line endings.
+   */
+  async exportCsv(actor: Actor, query: ListQuery): Promise<{ csv: string; filename: string }> {
+    void actor; // any authenticated role may export (same as list)
+    const rows = await this.repo.listForExport(query);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    return { csv: buildCsv(rows), filename: `disbursements-${stamp}.csv` };
   }
 
   async getById(id: string): Promise<DisbursementApi> {

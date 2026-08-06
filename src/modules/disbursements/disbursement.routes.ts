@@ -6,6 +6,7 @@ import type { AccessTokenPayload } from "../../plugins/auth.js";
 import {
   createBatchJsonSchema,
   createDisbursementJsonSchema,
+  exportQueryJsonSchema,
   idParamJsonSchema,
   listQueryJsonSchema,
   updateStatusJsonSchema,
@@ -22,7 +23,10 @@ function toActor(user: AccessTokenPayload): Actor {
   return { id: user.sub, username: user.username, role: user.role };
 }
 
-export function disbursementRoutes(service: DisbursementService) {
+export function disbursementRoutes(
+  service: DisbursementService,
+  opts: { rateLimitCreateMax: number },
+) {
   return async function routes(app: FastifyInstance) {
     app.addHook("preHandler", app.authenticate);
 
@@ -38,32 +42,49 @@ export function disbursementRoutes(service: DisbursementService) {
       return reply.send(success(row));
     });
 
-    app.post("/disbursements", { schema: createDisbursementJsonSchema }, async (request, reply) => {
-      const rawKey = request.headers["idempotency-key"];
-      let idempotencyKey: string | undefined;
-      if (rawKey !== undefined) {
-        const parsed = idempotencyKeySchema.safeParse(rawKey);
-        if (!parsed.success) {
-          throw errors.badRequest("INVALID_IDEMPOTENCY_KEY", "Idempotency-Key must be a valid UUID v4.");
-        }
-        idempotencyKey = parsed.data;
-      }
-      const result = await service.create(
-        toActor(request.user),
-        request.body as CreateDisbursementInput,
-        idempotencyKey,
-        request.id,
-        request.log,
-      );
-      reply.header("X-Idempotent-Replayed", result.replayed ? "true" : "false");
-      return reply.status(result.statusCode as 201).send(success(result.disbursement));
+    app.get("/disbursements/export", { schema: exportQueryJsonSchema }, async (request, reply) => {
+      const query = request.query as ListQuery;
+      const { csv, filename } = await service.exportCsv(toActor(request.user), query);
+      reply
+        .header("Content-Type", "text/csv; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${filename}"`);
+      return reply.send(csv);
     });
 
-    app.post("/disbursements/batch", { schema: createBatchJsonSchema }, async (request, reply) => {
-      const { items } = request.body as { items: CreateDisbursementInput[] };
-      const result = await service.createBatch(toActor(request.user), items, request.id, request.log);
-      return reply.status(201).send(success(result));
-    });
+    app.post(
+      "/disbursements",
+      { schema: createDisbursementJsonSchema, config: { rateLimit: { max: opts.rateLimitCreateMax } } },
+      async (request, reply) => {
+        const rawKey = request.headers["idempotency-key"];
+        let idempotencyKey: string | undefined;
+        if (rawKey !== undefined) {
+          const parsed = idempotencyKeySchema.safeParse(rawKey);
+          if (!parsed.success) {
+            throw errors.badRequest("INVALID_IDEMPOTENCY_KEY", "Idempotency-Key must be a valid UUID v4.");
+          }
+          idempotencyKey = parsed.data;
+        }
+        const result = await service.create(
+          toActor(request.user),
+          request.body as CreateDisbursementInput,
+          idempotencyKey,
+          request.id,
+          request.log,
+        );
+        reply.header("X-Idempotent-Replayed", result.replayed ? "true" : "false");
+        return reply.status(result.statusCode as 201).send(success(result.disbursement));
+      },
+    );
+
+    app.post(
+      "/disbursements/batch",
+      { schema: createBatchJsonSchema, config: { rateLimit: { max: opts.rateLimitCreateMax } } },
+      async (request, reply) => {
+        const { items } = request.body as { items: CreateDisbursementInput[] };
+        const result = await service.createBatch(toActor(request.user), items, request.id, request.log);
+        return reply.status(201).send(success(result));
+      },
+    );
 
     app.patch(
       "/disbursements/:id/status",

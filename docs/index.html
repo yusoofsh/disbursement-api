@@ -703,6 +703,7 @@
           <tr><td><span class="m">POST /auth/logout</span></td><td><span class="m">200</span> revoked</td><td><span class="m">401</span> invalid token</td></tr>
           <tr><td><span class="m">GET /disbursements</span></td><td><span class="m">200</span> page + meta</td><td><span class="m">400</span> bad filter/date · <span class="m">401</span></td></tr>
           <tr><td><span class="m">GET /disbursements/:id</span></td><td><span class="m">200</span></td><td><span class="m">404</span> (soft-deleted = not found)</td></tr>
+          <tr><td><span class="m">GET /disbursements/export</span></td><td><span class="m">200</span> CSV attachment</td><td><span class="m">400 · 401</span> bad filter / unauthenticated</td></tr>
           <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400 · 401 · 409</span> key reuse</td></tr>
           <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400</span> any invalid item → nothing created</td></tr>
           <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td><span class="m">200</span></td><td><span class="m">403 · 404 · 409</span> not pending</td></tr>

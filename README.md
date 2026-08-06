@@ -152,6 +152,7 @@ nub run dev                # http://localhost:3000
 | `GET` | `/health` | public | `200` or `503 DATABASE_UNAVAILABLE` |
 | `GET` | `/disbursements` | operator, admin, superadmin | Pagination, search, status/date filters, sorting; excludes soft-deleted |
 | `GET` | `/disbursements/:id` | operator, admin, superadmin | Single disbursement; soft-deleted = `404` |
+| `GET` | `/disbursements/export` | operator, admin, superadmin | Excel-compatible CSV of all rows matching the list filters |
 | `POST` | `/disbursements` | operator, admin, superadmin | Optional `Idempotency-Key` (UUID); `201` |
 | `POST` | `/disbursements/batch` | operator, admin, superadmin | 1–100 creates atomically; no `Idempotency-Key` support; `201` |
 | `PATCH` | `/disbursements/:id/status` | admin, superadmin | `PENDING` → `APPROVED`/`REJECTED`; exactly one winner under concurrency |
@@ -264,14 +265,33 @@ Response (`201 Created`):
 
 ## Rate limiting
 
-Per-client rate limiting is provided by `@fastify/rate-limit` with a 1-minute window:
+Per-user rate limiting is provided by `@fastify/rate-limit` with a 1-minute window:
 
-- A generous global limit (`RATE_LIMIT_MAX`, default `200`/minute) applies to every route.
+- `POST /disbursements` and `POST /disbursements/batch` get **30 requests/minute per user**
+  (`RATE_LIMIT_CREATE_MAX`) as specified in the assessment.
+- All other routes get a generous limit (`RATE_LIMIT_MAX`, default `120`/minute per user).
 - `POST /auth/login` gets a stricter limit (`RATE_LIMIT_LOGIN_MAX`, default `10`/minute per IP) to protect credential checking.
 - Buckets are keyed by the authenticated user id (`sub` claim) for routes that carry a Bearer token, falling back to the client IP for public routes (login, refresh, logout, health, docs). The JWT is only decoded for keying — forged tokens still fail authentication.
 - Exceeding a limit returns `429` with the standard error contract: `{ "success": false, "error": { "code": "RATE_LIMITED", "message": "..." } }`, plus rate-limit headers.
 
 Both values are configurable via environment variables, so deployments can raise them and tests can lower them.
+
+## CSV export
+
+`GET /disbursements/export` returns every disbursement matching the same filters as the list endpoint
+(`search`, `status`, `date_from`, `date_to`, `sort_by`, `sort_order` — no pagination) as an
+**Excel-compatible CSV**: UTF-8 BOM, RFC 4180 quoting (commas/quotes/newlines inside fields are safe),
+CRLF line endings, ISO-8601 timestamps, and a `Content-Disposition: attachment` filename like
+`disbursements-2026-08-06-22-30-00.csv`.
+
+```bash
+curl -OJ "http://localhost:3000/disbursements/export?status=PENDING" \
+  -H "authorization: Bearer $ACCESS_TOKEN"
+```
+
+Open the downloaded file directly in Excel or Google Sheets. A real `.xlsx` writer was deliberately
+not added: CSV with a BOM covers Excel's encoding edge cases with zero extra dependencies, and the
+same filters guarantee the export matches what the UI/API shows.
 
 ## Swagger/OpenAPI
 

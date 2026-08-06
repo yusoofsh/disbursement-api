@@ -19,7 +19,7 @@ describe("rate limiting", () => {
     app = await buildApp(
       loadEnv({
         ...process.env,
-        RATE_LIMIT_MAX: "10",
+        RATE_LIMIT_MAX: "100",
         RATE_LIMIT_LOGIN_MAX: "3",
       }),
     );
@@ -56,15 +56,16 @@ describe("rate limiting", () => {
   });
 
   it("keys authenticated routes by user id, not by IP", async () => {
-    // A separate app so the login-limit buckets do not interfere. With max 3
-    // per user, the operator's fourth create is limited while the admin (same
-    // IP, different user) still succeeds.
-    const app2 = await buildApp(
-      loadEnv({
-        ...process.env,
-        RATE_LIMIT_MAX: "3",
-        RATE_LIMIT_LOGIN_MAX: "100",
-      }),
+      // A separate app so the login-limit buckets do not interfere. The PDF
+      // requires POST /disbursements at 30/min per user; with RATE_LIMIT_CREATE_MAX
+      // set to 3, the operator's fourth create is limited while the admin (same
+      // IP, different user) still succeeds.
+      const app2 = await buildApp(
+        loadEnv({
+          ...process.env,
+          RATE_LIMIT_CREATE_MAX: "3",
+          RATE_LIMIT_LOGIN_MAX: "100",
+        }),
     );
     try {
       const op = await loginAs(app2, "operator");

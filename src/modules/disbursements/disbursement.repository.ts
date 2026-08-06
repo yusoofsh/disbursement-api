@@ -54,6 +54,19 @@ export class DisbursementRepository {
     return { rows, total: totalRows[0]?.value ?? 0 };
   }
 
+  /** All rows matching the list filters (no pagination) for CSV export. */
+  async listForExport(query: ListQuery): Promise<Disbursement[]> {
+    const conditions: SQL[] = [isNull(disbursements.deletedAt)];
+    if (query.search) conditions.push(ilike(disbursements.recipientName, `%${query.search}%`));
+    if (query.status) conditions.push(eq(disbursements.status, query.status));
+    if (query.date_from) conditions.push(gte(disbursements.createdAt, new Date(`${query.date_from}T00:00:00.000Z`)));
+    if (query.date_to) conditions.push(lte(disbursements.createdAt, new Date(`${query.date_to}T23:59:59.999Z`)));
+    const where = and(...conditions);
+    const sortColumn = query.sort_by === "amount" ? disbursements.amount : disbursements.createdAt;
+    const orderBy = query.sort_order === "asc" ? asc(sortColumn) : desc(sortColumn);
+    return this.db.select().from(disbursements).where(where).orderBy(orderBy);
+  }
+
   /**
    * Atomic compare-and-set status transition. Returns the updated row when the
    * record was still PENDING; returns no row when it was missing, soft-deleted,

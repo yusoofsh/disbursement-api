@@ -194,6 +194,35 @@ export const listQueryJsonSchema = {
   },
 } as const;
 
+export const exportQueryJsonSchema = {
+  tags: ["disbursements"],
+  summary: "Export disbursements as CSV",
+  description:
+    "Returns every disbursement matching the same filters as the list endpoint as an Excel-compatible CSV (UTF-8 BOM, RFC 4180 quoting, CRLF). No pagination — the export contains all matching rows.",
+  security: [{ bearerAuth: [] }],
+  response: {
+    200: {
+      description: "CSV file (attachment)",
+      content: { "text/csv": { schema: { type: "string" } } },
+    },
+    400: errorResponses[400],
+    401: errorResponses[401],
+    429: errorResponses[429],
+  },
+  querystring: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      search: { type: "string", maxLength: 255 },
+      status: { type: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+      date_from: { type: "string", pattern: "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$" },
+      date_to: { type: "string", pattern: "^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$" },
+      sort_by: { type: "string", enum: ["created_at", "amount"], default: "created_at" },
+      sort_order: { type: "string", enum: ["asc", "desc"], default: "desc" },
+    },
+  },
+} as const;
+
 export interface ListQuery {
   page: number;
   limit: number;
