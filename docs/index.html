@@ -1096,7 +1096,10 @@ nub run test       <span class="c"># 51 tests</span></pre>
     }
 
     async function call(method, path, { body, token } = {}) {
-      const headers = { "content-type": "application/json" };
+      // Only declare JSON when a body is actually sent — Fastify 400s on an
+      // empty body with content-type: application/json (broke DELETE).
+      const headers = {};
+      if (body !== undefined) headers["content-type"] = "application/json";
       if (token) headers.authorization = "Bearer " + token;
       let res;
       try {
@@ -1153,9 +1156,13 @@ nub run test       <span class="c"># 51 tests</span></pre>
         note: document.getElementById("d-note").value || undefined,
       };
       const headers = { "content-type": "application/json", authorization: "Bearer " + accessToken };
-      if (replay && lastIdempotencyKey) {
+      if (replay) {
+        if (!lastIdempotencyKey) {
+          fail("POST", "/disbursements (replay)", new Error('No key in memory — click "Create (new key)" first.'));
+          return;
+        }
         headers["idempotency-key"] = lastIdempotencyKey;
-      } else if (!replay) {
+      } else {
         lastIdempotencyKey = crypto.randomUUID();
         headers["idempotency-key"] = lastIdempotencyKey;
       }
