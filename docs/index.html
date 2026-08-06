@@ -4,12 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Disbursement API Submission — Technical Explainer</title>
+<meta name="description" content="LintasPay disbursement API — a self-contained technical explainer with interactive live demo: idempotency, concurrency, RBAC, soft delete, audit logging and CSV export.">
+<meta property="og:title" content="Disbursement API — Technical Explainer">
+<meta property="og:description" content="Interactive technical explainer with a live demo console for the LintasPay disbursement API.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.yusoofsh.id/static/disbursement-api/index.html">
+<meta name="theme-color" content="#1d4d9b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4d9b'/%3E%3Cpath d='M8 22V10h7.2a5.2 5.2 0 0 1 0 10.4H12V22z' fill='%23e0c35a'/%3E%3Crect x='12' y='14' width='4.6' height='3.4' fill='%23e0c35a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-body: 'Outfit', system-ui, sans-serif;
     --font-mono: 'Fira Code', 'SF Mono', Consolas, monospace;
 
     --bg: #f5f7fb;
@@ -49,12 +56,26 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  html { scroll-behavior: smooth; }
+  :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  ::selection { background: var(--primary); color: #fff; }
+
   body {
-    background: var(--bg);
+    background:
+      radial-gradient(900px 500px at 88% -8%, var(--primary-dim), transparent 62%),
+      radial-gradient(700px 420px at -6% 108%, var(--secondary-dim), transparent 60%),
+      var(--bg);
     color: var(--text);
     font-family: var(--font-body);
     padding: 40px;
-    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  /* Subtle grain breaks digital flatness; sits above content but never blocks input. */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    z-index: 300; pointer-events: none; opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   @keyframes fadeUp {
@@ -121,10 +142,19 @@
   .toc a.active { color: var(--text); border-left-color: var(--primary); }
 
   /* ============ TYPOGRAPHY ============ */
-  h1 { font-size: 40px; font-weight: 700; letter-spacing: -1px; margin-bottom: 6px; text-wrap: balance; }
+  h1 { font-size: 44px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.05; margin-bottom: 8px; text-wrap: balance; }
   .subtitle { color: var(--text-dim); font-family: var(--font-mono); font-size: 12.5px; margin-bottom: 8px; }
   .repo-link { font-family: var(--font-mono); font-size: 12px; color: var(--primary); text-decoration: none; }
   .repo-link:hover { text-decoration: underline; }
+  .skip-link {
+    position: fixed; top: 8px; left: 8px; z-index: 400;
+    transform: translateY(-200%);
+    background: var(--primary); color: #fff;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    padding: 8px 14px; border-radius: 6px; text-decoration: none;
+    transition: transform 0.2s;
+  }
+  .skip-link:focus-visible { transform: translateY(0); }
   .demo-cta {
     display: inline-block;
     margin-top: 10px;
@@ -135,10 +165,11 @@
     font-family: var(--font-mono);
     font-size: 13px; font-weight: 700;
     text-decoration: none;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 32%, transparent);
     transition: transform 0.15s, box-shadow 0.15s;
   }
-  .demo-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.24); }
+  .demo-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 40%, transparent); }
+  .demo-cta:active { transform: translateY(0) scale(0.98); }
 
   .sec-head {
     font-size: 22px; font-weight: 700; letter-spacing: -0.3px;
@@ -146,9 +177,10 @@
     padding-top: 12px;
     border-top: 2px solid var(--border);
     scroll-margin-top: 24px;
+    text-wrap: balance;
   }
   .sec-head .num { font-family: var(--font-mono); font-size: 13px; color: var(--primary); margin-right: 10px; }
-  .sec-desc { font-size: 13.5px; line-height: 1.7; color: var(--text-dim); margin-bottom: 20px; max-width: 760px; }
+  .sec-desc { font-size: 13.5px; line-height: 1.75; color: var(--text-dim); margin-bottom: 20px; max-width: 640px; text-wrap: pretty; }
   .sec-desc code, td code, li code, .card code, p code {
     font-family: var(--font-mono); font-size: 11.5px;
     background: var(--primary-dim); color: var(--primary);
@@ -164,12 +196,12 @@
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 18px 20px;
     min-width: 0;
   }
   .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-  .card p, .card li { font-size: 12.5px; line-height: 1.65; color: var(--text-dim); }
+  .card p, .card li { font-size: 12.5px; line-height: 1.65; color: var(--text-dim); text-wrap: pretty; }
   .card ul { padding-left: 18px; margin-top: 4px; }
   .card li { margin-bottom: 3px; }
   .card .tag {
@@ -182,13 +214,14 @@
 
   /* KPI */
   .kpi { text-align: left; }
-  .kpi .value { font-family: var(--font-mono); font-size: 26px; font-weight: 500; color: var(--primary); }
+  .kpi .value { font-family: var(--font-mono); font-size: 26px; font-weight: 500; color: var(--primary); font-variant-numeric: tabular-nums; }
   .kpi .label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .kpi.ok .value { color: var(--secondary); }
 
   /* ============ TABLES ============ */
   .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td, th { font-variant-numeric: tabular-nums; }
   caption { text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); padding: 10px 14px 0; }
   th {
     font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
@@ -295,8 +328,10 @@
     padding: 5px 10px; border-radius: 5px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.1s;
   }
   .demo-toolbar button:hover { border-color: var(--primary); color: var(--primary); }
+  .demo-toolbar button:active { transform: scale(0.97); }
   .demo-toolbar .api-badge {
     margin-left: auto; min-width: 0; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
     max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -310,7 +345,10 @@
     border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
     font-family: var(--font-mono); font-size: 11px; font-weight: 600;
     padding: 6px 10px; border-radius: 20px; cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.1s;
   }
+  .step:hover { border-color: var(--primary); color: var(--text); }
+  .step:active { transform: scale(0.97); }
   .step .step-num {
     width: 17px; height: 17px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
@@ -340,7 +378,8 @@
     background: var(--surface); color: var(--text);
     width: 100%; min-width: 0; /* inputs default to intrinsic ~20ch width — must shrink to the grid track */
   }
-  .scenario-step input:focus, .scenario-step select:focus { outline: none; border-color: var(--primary); }
+  .scenario-step input:focus, .scenario-step select:focus { border-color: var(--primary); }
+  .scenario-step input:focus-visible, .scenario-step select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
   /* pairs stack when the column is too narrow — fixed 1fr 1fr made inputs overlap */
   .scenario-step .row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; }
   .scenario-step .row2 > * { min-width: 0; }
@@ -349,8 +388,10 @@
     padding: 6px 10px; border: none; border-radius: 5px;
     background: var(--primary); color: #fff; cursor: pointer;
     width: 100%;
+    transition: background 0.2s, filter 0.2s, transform 0.1s;
   }
   .scenario-step button.run:hover { filter: brightness(1.08); }
+  .scenario-step button.run:active { transform: scale(0.98); }
   .scenario-step button.run.ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
   .scenario-step .run-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
   .demo-result {
@@ -416,7 +457,9 @@
   .mode-pill.live { background: var(--secondary-dim); color: var(--secondary); }
   .mode-pill.sim { background: var(--primary-dim); color: var(--primary); }
 
-  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); line-height: 1.7; }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
 
   @media (max-width: 1000px) {
     body { padding: 0 16px 24px; }
@@ -440,6 +483,8 @@
 </style>
 </head>
 <body>
+
+<a class="skip-link" href="#main-content">Skip to content</a>
 
 <div class="wrap">
 
@@ -467,12 +512,12 @@
     <a href="#s-demo">Live Demo</a>
   </nav>
 
-  <div class="main">
+  <div class="main" id="main-content">
 
     <h1 class="animate" style="--i:0">Disbursement API Submission</h1>
     <p class="subtitle animate" style="--i:1">LintasPay · Senior Backend Developer assessment · technical explainer</p>
     <p class="animate" style="--i:2"><a class="repo-link" href="https://github.com/yusoofsh/disbursement-api">github.com/yusoofsh/disbursement-api</a></p>
-    <p class="animate" style="--i:3"><a class="demo-cta" href="#s-demo">🚀 Try the live demo</a></p>
+    <p class="animate" style="--i:3"><a class="demo-cta" href="#s-demo">Try the live demo →</a></p>
 
     <!-- ================= OVERVIEW ================= -->
     <div class="sec-head animate" id="s-overview"><span class="num">01</span>Overview</div>
@@ -968,7 +1013,8 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     </div>
 
     <footer>
-      Disbursement API Submission · Fastify 5 + PostgreSQL 16 + Drizzle · 70/70 tests · CI green · Generated as a self-contained explainer
+      Disbursement API · Fastify 5 + PostgreSQL 16 + Drizzle · 70/70 tests · CI green ·
+      <a href="https://github.com/yusoofsh/disbursement-api">github.com/yusoofsh/disbursement-api</a>
     </footer>
 
   </div><!-- /main -->
@@ -992,7 +1038,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     theme: 'base',
     look: 'classic',
     themeVariables: {
-      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontFamily: "'Outfit', system-ui, sans-serif",
       fontSize: '15px',
       primaryColor: isDark ? '#1b2740' : '#f2f5fb',
       primaryBorderColor: isDark ? '#6a97e0' : '#1d4d9b',
@@ -1096,7 +1142,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
       const clone = svg.cloneNode(true);
       clone.style.width = ''; clone.style.height = '';
       const bg = isDark ? '#0e1626' : '#f5f7fb';
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90vh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90dvh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
       open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
     }
     async function render() {
