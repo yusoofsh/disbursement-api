@@ -4,6 +4,7 @@ import { success } from "../../shared/http/response.js";
 import { errors } from "../../shared/errors/app-error.js";
 import type { AccessTokenPayload } from "../../plugins/auth.js";
 import {
+  createBatchJsonSchema,
   createDisbursementJsonSchema,
   idParamJsonSchema,
   listQueryJsonSchema,
@@ -56,6 +57,12 @@ export function disbursementRoutes(service: DisbursementService) {
       );
       reply.header("X-Idempotent-Replayed", result.replayed ? "true" : "false");
       return reply.status(result.statusCode).send(success(result.disbursement));
+    });
+
+    app.post("/disbursements/batch", { schema: createBatchJsonSchema }, async (request, reply) => {
+      const { items } = request.body as { items: CreateDisbursementInput[] };
+      const result = await service.createBatch(toActor(request.user), items, request.id, request.log);
+      return reply.status(201).send(success(result));
     });
 
     app.patch(

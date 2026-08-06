@@ -14,6 +14,9 @@ export const logoutBodySchema = z.object({
 });
 
 export const loginJsonSchema = {
+  tags: ["auth"],
+  summary: "Login",
+  description: "Authenticates with username and password, returning access and refresh tokens.",
   body: {
     type: "object",
     required: ["username", "password"],
@@ -26,6 +29,9 @@ export const loginJsonSchema = {
 } as const;
 
 export const refreshJsonSchema = {
+  tags: ["auth"],
+  summary: "Refresh token rotation",
+  description: "Rotates the presented refresh token and issues a fresh token pair.",
   body: {
     type: "object",
     required: ["refresh_token"],

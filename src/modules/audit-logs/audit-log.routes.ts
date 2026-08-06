@@ -5,6 +5,10 @@ import type { AuditLogService } from "./audit-log.service.js";
 import type { AuditLogQuery } from "./audit-log.repository.js";
 
 const auditLogQueryJsonSchema = {
+  tags: ["audit-logs"],
+  summary: "List audit logs",
+  description: "Paginated audit trail with entity_id, action and date filters. Superadmin only.",
+  security: [{ bearerAuth: [] }],
   querystring: {
     type: "object",
     additionalProperties: false,

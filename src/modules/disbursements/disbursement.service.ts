@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, lte, sql } from "drizzle-orm";
 import type { Db } from "../../db/client.js";
 import { idempotencyKeys, type Disbursement, type UserRole } from "../../db/schema.js";
 import { errors } from "../../shared/errors/app-error.js";
@@ -135,6 +135,19 @@ export class DisbursementService {
         return this.replayOrConflict(inside.requestHash === requestHash, inside);
       }
 
+      // An expired row still occupies the (user_id, idempotency_key) unique
+      // slot, so a fresh insert would violate the constraint. Replace it here,
+      // inside the advisory lock, so expired keys are genuinely reusable.
+      await tx
+        .delete(idempotencyKeys)
+        .where(
+          and(
+            eq(idempotencyKeys.userId, actor.id),
+            eq(idempotencyKeys.idempotencyKey, idempotencyKey),
+            lte(idempotencyKeys.expiresAt, new Date()),
+          ),
+        );
+
       const repo = new DisbursementRepository(tx as unknown as Db);
       const disbursement = await repo.create({
         recipientName: input.recipient_name,
@@ -165,6 +178,53 @@ export class DisbursementService {
       }
       return result;
     });
+  }
+
+  /**
+   * All-or-nothing batch create. The route schema already validates every item
+   * (and the 1-100 length bound); inserts share one transaction so a failure
+   * rolls back the whole batch. Audit entries are written after commit, one per
+   * disbursement, with the same non-blocking semantics as single create.
+   * Idempotency-Key is intentionally not supported for batch.
+   */
+  async createBatch(
+    actor: Actor,
+    items: CreateDisbursementInput[],
+    requestId: string,
+    log: FastifyBaseLogger,
+  ): Promise<{ created: number; items: DisbursementApi[] }> {
+    if (!canCreateDisbursement(actor.role)) throw errors.forbidden();
+    if (items.length < 1 || items.length > 100) {
+      throw errors.badRequest(
+        "VALIDATION_ERROR",
+        "Batch must contain between 1 and 100 items.",
+      );
+    }
+
+    const created = await this.db.transaction(async (tx) => {
+      const repo = new DisbursementRepository(tx as unknown as Db);
+      const rows: Disbursement[] = [];
+      for (const item of items) {
+        rows.push(
+          await repo.create({
+            recipientName: item.recipient_name,
+            accountNumber: item.account_number,
+            bankCode: item.bank_code,
+            amount: item.amount,
+            adminFee: calculateAdminFee(item.amount),
+            note: item.note,
+            createdBy: actor.id,
+          }),
+        );
+      }
+      return rows;
+    });
+
+    const apiItems = created.map(toApiDisbursement);
+    for (const disbursement of created) {
+      await this.auditCreated(disbursement, actor, requestId, log);
+    }
+    return { created: created.length, items: apiItems };
   }
 
   private replayOrConflict(

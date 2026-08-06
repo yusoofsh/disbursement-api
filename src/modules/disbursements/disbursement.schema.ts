@@ -8,22 +8,73 @@ export const createDisbursementBodySchema = z.object({
   note: z.string().max(2000).optional(),
 });
 
+/** Shared item shape for single and batch create (Fastify JSON schema). */
+const disbursementItemProperties = {
+  recipient_name: { type: "string", minLength: 1, maxLength: 255 },
+  account_number: { type: "string", minLength: 1, maxLength: 64 },
+  bank_code: { type: "string", minLength: 1, maxLength: 16 },
+  amount: { type: "integer", minimum: 10000 },
+  note: { type: "string", maxLength: 2000 },
+} as const;
+
+const disbursementItemRequired = ["recipient_name", "account_number", "bank_code", "amount"] as const;
+
 export const createDisbursementJsonSchema = {
+  tags: ["disbursements"],
+  summary: "Create a disbursement",
+  description:
+    "Creates a PENDING disbursement with a computed admin fee. Supports an optional Idempotency-Key header (UUID v4); a reused key replays the stored response for 24 hours.",
+  security: [{ bearerAuth: [] }],
+  headers: {
+    type: "object",
+    properties: {
+      "idempotency-key": {
+        type: "string",
+        description:
+          "Optional UUID v4 (validated in the route handler, which returns 400 INVALID_IDEMPOTENCY_KEY otherwise). Reusing the same key with the same payload within 24 hours replays the stored response without creating a second disbursement.",
+      },
+    },
+  },
   body: {
     type: "object",
-    required: ["recipient_name", "account_number", "bank_code", "amount"],
+    required: disbursementItemRequired,
+    additionalProperties: false,
+    properties: disbursementItemProperties,
+  },
+} as const;
+
+export const createBatchJsonSchema = {
+  tags: ["disbursements"],
+  summary: "Create disbursements in batch",
+  description:
+    "Creates 1-100 disbursements atomically in one transaction. Each item follows the single-create rules and gets its own admin fee. Idempotency-Key is not supported for batch requests.",
+  security: [{ bearerAuth: [] }],
+  body: {
+    type: "object",
+    required: ["items"],
     additionalProperties: false,
     properties: {
-      recipient_name: { type: "string", minLength: 1, maxLength: 255 },
-      account_number: { type: "string", minLength: 1, maxLength: 64 },
-      bank_code: { type: "string", minLength: 1, maxLength: 16 },
-      amount: { type: "integer", minimum: 10000 },
-      note: { type: "string", maxLength: 2000 },
+      items: {
+        type: "array",
+        minItems: 1,
+        maxItems: 100,
+        items: {
+          type: "object",
+          required: disbursementItemRequired,
+          additionalProperties: false,
+          properties: disbursementItemProperties,
+        },
+      },
     },
   },
 } as const;
 
 export const updateStatusJsonSchema = {
+  tags: ["disbursements"],
+  summary: "Update disbursement status",
+  description:
+    "Transitions a PENDING disbursement to APPROVED or REJECTED. Concurrency-safe: only one concurrent transition wins; losers receive 409.",
+  security: [{ bearerAuth: [] }],
   body: {
     type: "object",
     required: ["status"],
@@ -41,6 +92,8 @@ export const updateStatusJsonSchema = {
 } as const;
 
 export const idParamJsonSchema = {
+  tags: ["disbursements"],
+  security: [{ bearerAuth: [] }],
   params: {
     type: "object",
     required: ["id"],
@@ -49,6 +102,11 @@ export const idParamJsonSchema = {
 } as const;
 
 export const listQueryJsonSchema = {
+  tags: ["disbursements"],
+  summary: "List disbursements",
+  description:
+    "Paginated list with search, status/date filters and sorting. Excludes soft-deleted records.",
+  security: [{ bearerAuth: [] }],
   querystring: {
     type: "object",
     additionalProperties: false,

@@ -33,6 +33,13 @@ cp .env.example .env
 
 Required: `DATABASE_URL`, plus `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (each at least 32 characters). `NODE_ENV`, `PORT`, `HOST`, `JWT_ACCESS_TTL` (default `15m`), `JWT_REFRESH_TTL` (default `7d`), and `LOG_LEVEL` have defaults. The app fails fast on invalid or missing configuration.
 
+Rate-limit knobs (requests per minute, see [Rate limiting](#rate-limiting)):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `RATE_LIMIT_MAX` | `200` | Global per-client limit for all routes |
+| `RATE_LIMIT_LOGIN_MAX` | `10` | Stricter per-IP limit for `POST /auth/login` |
+
 ## Docker Compose (recommended)
 
 ```bash
@@ -104,9 +111,12 @@ nub run dev                # http://localhost:3000
 | `GET` | `/disbursements` | operator, admin, superadmin | Pagination, search, status/date filters, sorting; excludes soft-deleted |
 | `GET` | `/disbursements/:id` | operator, admin, superadmin | Single disbursement; soft-deleted = `404` |
 | `POST` | `/disbursements` | operator, admin, superadmin | Optional `Idempotency-Key` (UUID); `201` |
+| `POST` | `/disbursements/batch` | operator, admin, superadmin | 1–100 creates atomically; no `Idempotency-Key` support; `201` |
 | `PATCH` | `/disbursements/:id/status` | admin, superadmin | `PENDING` → `APPROVED`/`REJECTED`; exactly one winner under concurrency |
 | `DELETE` | `/disbursements/:id` | superadmin | Soft delete, `PENDING` only, `204` |
 | `GET` | `/audit-logs` | superadmin | Filters: `entity_id`, `action`, `date_from`, `date_to`; newest first |
+
+Interactive API documentation (OpenAPI) is served at `http://localhost:3000/documentation` (Swagger UI) and `http://localhost:3000/documentation/json` (OpenAPI 3 JSON).
 
 All responses follow `{ "success": true, "data": ..., "meta": ... }` or `{ "success": false, "error": { "code", "message" } }`, and every response carries `X-Request-ID`.
 
@@ -160,7 +170,73 @@ curl -i -X DELETE http://localhost:3000/disbursements/$DISBURSEMENT_ID \
 # 6. Audit logs (superadmin)
 curl http://localhost:3000/audit-logs?action=status_changed&limit=10 \
   -H "authorization: Bearer $SUPERADMIN_TOKEN"
+
+# 7. Batch create (1-100 items, all-or-nothing; Idempotency-Key is NOT supported)
+curl -X POST http://localhost:3000/disbursements/batch \
+  -H "authorization: Bearer $ACCESS_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"recipient_name":"Budi Santoso","account_number":"1234567890","bank_code":"BCA","amount":1250000},{"recipient_name":"Siti Aminah","account_number":"0987654321","bank_code":"BCA","amount":6000000}]}'
+# → 201 {"success":true,"data":{"created":2,"items":[...]}}
 ```
+
+## Batch disbursements
+
+`POST /disbursements/batch` creates 1–100 disbursements in a single request. It is available to the same roles as single create (operator, admin, superadmin).
+
+Request body:
+
+```json
+{
+  "items": [
+    {
+      "recipient_name": "Budi Santoso",
+      "account_number": "1234567890",
+      "bank_code": "BCA",
+      "amount": 1250000,
+      "note": "Pembayaran supplier"
+    }
+  ]
+}
+```
+
+Rules:
+
+- Each item follows the exact single-create rules (required fields, `amount >= 10000` integer, per-item `admin_fee` of 2500/5000 based on the item's own amount).
+- The whole request is validated by the Fastify JSON schema first: any invalid item rejects the entire request with `400` and nothing is created.
+- Valid items are inserted in **one transaction** (all-or-nothing): a failure rolls back the whole batch.
+- All items start `PENDING`; `created_by` comes from the JWT.
+- One audit entry (`action: "created"`) is written per disbursement, non-blocking, after the transaction commits.
+- `Idempotency-Key` is **not supported** on this endpoint. The header is ignored (no replay behavior, no rejection); send duplicate batches at your own risk.
+
+Response (`201 Created`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "created": 2,
+    "items": [ "<disbursement object>", "<disbursement object>" ]
+  }
+}
+```
+
+## Rate limiting
+
+Per-client rate limiting is provided by `@fastify/rate-limit` with a 1-minute window:
+
+- A generous global limit (`RATE_LIMIT_MAX`, default `200`/minute) applies to every route.
+- `POST /auth/login` gets a stricter limit (`RATE_LIMIT_LOGIN_MAX`, default `10`/minute per IP) to protect credential checking.
+- Buckets are keyed by the authenticated user id (`sub` claim) for routes that carry a Bearer token, falling back to the client IP for public routes (login, refresh, logout, health, docs). The JWT is only decoded for keying — forged tokens still fail authentication.
+- Exceeding a limit returns `429` with the standard error contract: `{ "success": false, "error": { "code": "RATE_LIMITED", "message": "..." } }`, plus rate-limit headers.
+
+Both values are configurable via environment variables, so deployments can raise them and tests can lower them.
+
+## Swagger/OpenAPI
+
+- Swagger UI: `GET http://localhost:3000/documentation`
+- OpenAPI 3 JSON: `GET http://localhost:3000/documentation/json`
+
+The docs are public (no auth) and include a Bearer security scheme. Routes are tagged (`auth`, `disbursements`, `audit-logs`, `health`); request schemas, summaries, and the optional `Idempotency-Key` header on `POST /disbursements` are documented.
 
 ## Database schema
 
@@ -182,7 +258,8 @@ Five tables, all with UUID primary keys:
 - A replay returns the stored response byte-for-byte with `X-Idempotent-Replayed: true` and creates no side effects (no second row, no audit event).
 - Same key, different payload → `409 IDEMPOTENCY_KEY_REUSED`.
 - Simultaneous first uses are serialized by a transaction-scoped `pg_advisory_xact_lock` on `(user_id, key)`; the loser re-checks inside the lock and replays.
-- Expired keys are ignored and treated as a fresh request; there is no background cleanup job (see limitations).
+- Expired keys are ignored and treated as a fresh request. Because the expired row still occupies the `(user_id, key)` unique slot, the create path deletes it inside the advisory-lock transaction and inserts a new row — the key is genuinely reusable and no unique-violation can occur.
+- `POST /disbursements/batch` does **not** support `Idempotency-Key`; the header is ignored there.
 
 ## Concurrency behavior
 
@@ -198,11 +275,10 @@ Audit entries are written **after** the primary transaction commits. If the inse
 - `search` uses `ILIKE '%term%'` on `recipient_name` without a trigram (`pg_trgm`) index — fine at assessment scale, not for large datasets.
 - Refresh tokens are rotated on every refresh; the presented token is revoked, so a reused/rotated token is rejected. There is no explicit reuse-detection beyond that revocation.
 - Audit events can be lost if the post-commit insert fails (documented trade-off above).
-- Expired idempotency rows are not cleaned up by a background job.
+- Expired idempotency rows are not cleaned up by a background job; they are removed lazily when the same key is reused.
 - `amount` must be a JSON integer (bigint); non-integers are rejected by the route schema.
 - The production Docker image contains only runtime dependencies, so in-container one-off commands use the compiled `dist/` entry points (`node dist/db/migrate.js`, `node dist/db/seed.js`) rather than `tsx`.
 - The repo ships `nub.lock` and no `package-lock.json`, so the Dockerfile uses `npm install` (switch to `npm ci` if a `package-lock.json` is added).
-- OpenAPI/Swagger is not included (bonus, deferred).
 
 ## AI/tooling disclosure
 

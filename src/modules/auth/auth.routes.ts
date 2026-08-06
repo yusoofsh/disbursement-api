@@ -3,13 +3,20 @@ import { success } from "../../shared/http/response.js";
 import { loginJsonSchema, refreshJsonSchema } from "./auth.schema.js";
 import type { AuthService } from "./auth.service.js";
 
-export function authRoutes(service: AuthService) {
+export function authRoutes(
+  service: AuthService,
+  opts: { rateLimitLoginMax: number },
+) {
   return async function routes(app: FastifyInstance) {
-    app.post("/auth/login", { schema: loginJsonSchema }, async (request, reply) => {
-      const { username, password } = request.body as { username: string; password: string };
-      const tokens = await service.login(username, password);
-      return reply.status(200).send(success(tokens));
-    });
+    app.post(
+      "/auth/login",
+      { schema: loginJsonSchema, config: { rateLimit: { max: opts.rateLimitLoginMax } } },
+      async (request, reply) => {
+        const { username, password } = request.body as { username: string; password: string };
+        const tokens = await service.login(username, password);
+        return reply.status(200).send(success(tokens));
+      },
+    );
 
     app.post("/auth/refresh", { schema: refreshJsonSchema }, async (request, reply) => {
       const { refresh_token } = request.body as { refresh_token: string };
