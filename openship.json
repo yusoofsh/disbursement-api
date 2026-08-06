@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openship.io/openship.schema.json",
+  "buildCommand": "npm run build",
+  "startCommand": "npm run start"
+}
