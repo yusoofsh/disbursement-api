@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { success } from "../../shared/http/response.js";
-import { loginJsonSchema, refreshJsonSchema } from "./auth.schema.js";
+import { loginJsonSchema, logoutJsonSchema, refreshJsonSchema } from "./auth.schema.js";
 import type { AuthService } from "./auth.service.js";
 
 export function authRoutes(
@@ -24,7 +24,7 @@ export function authRoutes(
       return reply.status(200).send(success(tokens));
     });
 
-    app.post("/auth/logout", { schema: refreshJsonSchema }, async (request, reply) => {
+    app.post("/auth/logout", { schema: logoutJsonSchema }, async (request, reply) => {
       const { refresh_token } = request.body as { refresh_token: string };
       await service.logout(refresh_token);
       return reply.status(200).send(success({ message: "Logged out successfully." }));

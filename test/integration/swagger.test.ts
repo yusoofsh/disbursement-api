@@ -34,6 +34,13 @@ describe("swagger/openapi", () => {
     );
     expect(doc.paths["/auth/login"].post.tags).toEqual(["auth"]);
     expect(doc.paths["/auth/login"].post.security).toBeUndefined();
+
+    // Response schemas are documented for the key routes.
+    expect(create.responses["201"].content["application/json"].schema.properties.data.properties.admin_fee.enum).toEqual([2500, 5000]);
+    expect(create.responses["409"]).toBeDefined();
+    expect(doc.paths["/auth/login"].post.responses["200"].content["application/json"].schema.properties.data.properties.access_token).toBeDefined();
+    expect(doc.paths["/disbursements"].get.responses["200"].content["application/json"].schema.properties.meta.properties.total_pages).toBeDefined();
+    expect(doc.paths["/audit-logs"].get.responses["403"]).toBeDefined();
   });
 
   it("serves the Swagger UI HTML at /documentation", async () => {

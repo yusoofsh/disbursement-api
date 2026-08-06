@@ -56,7 +56,7 @@ export function disbursementRoutes(service: DisbursementService) {
         request.log,
       );
       reply.header("X-Idempotent-Replayed", result.replayed ? "true" : "false");
-      return reply.status(result.statusCode).send(success(result.disbursement));
+      return reply.status(result.statusCode as 201).send(success(result.disbursement));
     });
 
     app.post("/disbursements/batch", { schema: createBatchJsonSchema }, async (request, reply) => {

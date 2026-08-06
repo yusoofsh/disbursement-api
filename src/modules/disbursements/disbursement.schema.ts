@@ -1,4 +1,17 @@
 import { z } from "zod";
+import {
+  disbursementObject,
+  errorResponses,
+  paginationMeta,
+} from "../../shared/http/openapi-schemas.js";
+
+const singleDisbursementResponse = {
+  type: "object",
+  properties: {
+    success: { type: "boolean", enum: [true] },
+    data: disbursementObject,
+  },
+} as const;
 
 export const createDisbursementBodySchema = z.object({
   recipient_name: z.string().min(1).max(255),
@@ -25,6 +38,13 @@ export const createDisbursementJsonSchema = {
   description:
     "Creates a PENDING disbursement with a computed admin fee. Supports an optional Idempotency-Key header (UUID v4); a reused key replays the stored response for 24 hours.",
   security: [{ bearerAuth: [] }],
+  response: {
+    201: { description: "Created (or replayed) disbursement", ...singleDisbursementResponse },
+    400: errorResponses[400],
+    401: errorResponses[401],
+    409: errorResponses[409],
+    429: errorResponses[429],
+  },
   headers: {
     type: "object",
     properties: {
@@ -49,6 +69,25 @@ export const createBatchJsonSchema = {
   description:
     "Creates 1-100 disbursements atomically in one transaction. Each item follows the single-create rules and gets its own admin fee. Idempotency-Key is not supported for batch requests.",
   security: [{ bearerAuth: [] }],
+  response: {
+    201: {
+      description: "Created batch",
+      type: "object",
+      properties: {
+        success: { type: "boolean", enum: [true] },
+        data: {
+          type: "object",
+          properties: {
+            created: { type: "integer" },
+            items: { type: "array", items: disbursementObject },
+          },
+        },
+      },
+    },
+    400: errorResponses[400],
+    401: errorResponses[401],
+    429: errorResponses[429],
+  },
   body: {
     type: "object",
     required: ["items"],
@@ -75,6 +114,15 @@ export const updateStatusJsonSchema = {
   description:
     "Transitions a PENDING disbursement to APPROVED or REJECTED. Concurrency-safe: only one concurrent transition wins; losers receive 409.",
   security: [{ bearerAuth: [] }],
+  response: {
+    200: { description: "Updated disbursement", ...singleDisbursementResponse },
+    400: errorResponses[400],
+    401: errorResponses[401],
+    403: errorResponses[403],
+    404: errorResponses[404],
+    409: errorResponses[409],
+    429: errorResponses[429],
+  },
   body: {
     type: "object",
     required: ["status"],
@@ -94,6 +142,15 @@ export const updateStatusJsonSchema = {
 export const idParamJsonSchema = {
   tags: ["disbursements"],
   security: [{ bearerAuth: [] }],
+  response: {
+    200: { description: "The disbursement (GET only)", ...singleDisbursementResponse },
+    204: { description: "Soft-deleted (DELETE only)", type: "null" },
+    401: errorResponses[401],
+    403: errorResponses[403],
+    404: errorResponses[404],
+    409: errorResponses[409],
+    429: errorResponses[429],
+  },
   params: {
     type: "object",
     required: ["id"],
@@ -107,6 +164,20 @@ export const listQueryJsonSchema = {
   description:
     "Paginated list with search, status/date filters and sorting. Excludes soft-deleted records.",
   security: [{ bearerAuth: [] }],
+  response: {
+    200: {
+      description: "Paginated disbursements",
+      type: "object",
+      properties: {
+        success: { type: "boolean", enum: [true] },
+        data: { type: "array", items: disbursementObject },
+        meta: paginationMeta,
+      },
+    },
+    400: errorResponses[400],
+    401: errorResponses[401],
+    429: errorResponses[429],
+  },
   querystring: {
     type: "object",
     additionalProperties: false,
