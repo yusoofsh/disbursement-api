@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Disbursement API Submission — Technical Explainer</title>
-<meta name="description" content="LintasPay disbursement API — a self-contained technical explainer with interactive live demo: idempotency, concurrency, RBAC, soft delete, audit logging and CSV export.">
-<meta property="og:title" content="Disbursement API — Technical Explainer">
+<title>Disbursement API Submission - Technical Explainer</title>
+<meta name="description" content="LintasPay disbursement API - a self-contained technical explainer with interactive live demo: idempotency, concurrency, RBAC, soft delete, audit logging and CSV export.">
+<meta property="og:title" content="Disbursement API - Technical Explainer">
 <meta property="og:description" content="Interactive technical explainer with a live demo console for the LintasPay disbursement API.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.yusoofsh.id/static/disbursement-api/index.html">
@@ -56,6 +56,14 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  /* Radius scale (documented system, used everywhere):
+     12px containers (cards, tables, panels, diagram shells)
+     8px controls (buttons, inputs, selects, toolbars)
+     999px pills and step chips
+     4px micro-chips (tags, code, status chips)
+     50% dots and step numbers
+  */
+  /* Z-index scale: 10 zoom controls, 200 sticky nav (mobile), 300 grain, 400 skip link */
   html { scroll-behavior: smooth; }
   :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   ::selection { background: var(--primary); color: #fff; }
@@ -132,7 +140,7 @@
     color: var(--text-dim);
     text-decoration: none;
     padding: 4px 8px;
-    border-radius: 5px;
+    border-radius: 6px;
     border-left: 2px solid transparent;
     transition: all 0.15s;
     line-height: 1.4;
@@ -179,12 +187,11 @@
     scroll-margin-top: 24px;
     text-wrap: balance;
   }
-  .sec-head .num { font-family: var(--font-mono); font-size: 13px; color: var(--primary); margin-right: 10px; }
   .sec-desc { font-size: 13.5px; line-height: 1.75; color: var(--text-dim); margin-bottom: 20px; max-width: 640px; text-wrap: pretty; }
   .sec-desc code, td code, li code, .card code, p code {
     font-family: var(--font-mono); font-size: 11.5px;
     background: var(--primary-dim); color: var(--primary);
-    padding: 1px 5px; border-radius: 3px;
+    padding: 1px 5px; border-radius: 4px;
   }
 
   /* ============ CARDS ============ */
@@ -207,7 +214,7 @@
   .card .tag {
     display: inline-block; font-family: var(--font-mono); font-size: 9.5px;
     text-transform: uppercase; letter-spacing: 1px;
-    padding: 2px 7px; border-radius: 3px; margin-bottom: 8px;
+    padding: 2px 7px; border-radius: 4px; margin-bottom: 8px;
     background: var(--secondary-dim); color: var(--secondary);
   }
   .card .tag.tradeoff { background: var(--primary-dim); color: var(--primary); }
@@ -219,7 +226,7 @@
   .kpi.ok .value { color: var(--secondary); }
 
   /* ============ TABLES ============ */
-  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   td, th { font-variant-numeric: tabular-nums; }
   caption { text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); padding: 10px 14px 0; }
@@ -231,7 +238,7 @@
   td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
   tr:last-child td { border-bottom: none; }
   td .m { font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
-  .pill { display: inline-block; font-family: var(--font-mono); font-size: 10px; padding: 1px 7px; border-radius: 20px; white-space: nowrap; }
+  .pill { display: inline-block; font-family: var(--font-mono); font-size: 10px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
   .pill.op { background: var(--surface2); color: var(--text-dim); }
   .pill.ad { background: var(--secondary-dim); color: var(--secondary); }
   .pill.sa { background: var(--primary-dim); color: var(--primary); }
@@ -271,12 +278,12 @@
   .zoom-controls {
     position: absolute; top: 8px; right: 8px; z-index: 10;
     display: flex; gap: 2px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px;
   }
   .zoom-controls button {
     width: 28px; height: 28px; border: none; background: transparent;
     color: var(--text-dim); font-family: var(--font-mono); font-size: 14px;
-    cursor: pointer; border-radius: 4px;
+    cursor: pointer; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
   }
   .zoom-controls button:hover { background: var(--border); color: var(--text); }
@@ -286,7 +293,7 @@
 
   /* ============ CODE ============ */
   pre {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 18px; overflow-x: auto;
     font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
     color: var(--text); margin-bottom: 16px;
@@ -297,7 +304,7 @@
   .callout {
     background: var(--surface); border: 1px solid var(--border);
     border-left: 3px solid var(--primary);
-    border-radius: 0 10px 10px 0;
+    border-radius: 0 12px 12px 0;
     padding: 14px 18px; font-size: 12.5px; line-height: 1.65; color: var(--text-dim);
     margin: 14px 0;
   }
@@ -325,7 +332,7 @@
   }
   .demo-toolbar button {
     font-family: var(--font-mono); font-size: 11px;
-    padding: 5px 10px; border-radius: 5px;
+    padding: 5px 10px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     cursor: pointer;
     transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.1s;
@@ -344,7 +351,7 @@
     display: inline-flex; align-items: center; gap: 6px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
     font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-    padding: 6px 10px; border-radius: 20px; cursor: pointer;
+    padding: 6px 10px; border-radius: 999px; cursor: pointer;
     transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.1s;
   }
   .step:hover { border-color: var(--primary); color: var(--text); }
@@ -362,7 +369,7 @@
   .scenario { display: grid; gap: 10px; padding: 12px; }
   .scenario-step {
     display: grid; grid-template-columns: 1fr; gap: 6px; min-width: 0;
-    border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+    border: 1px solid var(--border); border-radius: 12px; padding: 12px;
     background: var(--surface); opacity: 0.55; transition: opacity 0.2s;
   }
   .scenario-step.active { opacity: 1; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
@@ -374,18 +381,18 @@
   .scenario-step h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-family: var(--font-mono); }
   .scenario-step input, .scenario-step select {
     font-family: var(--font-mono); font-size: 11.5px;
-    padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px;
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px;
     background: var(--surface); color: var(--text);
-    width: 100%; min-width: 0; /* inputs default to intrinsic ~20ch width — must shrink to the grid track */
+    width: 100%; min-width: 0; /* inputs default to intrinsic ~20ch width - must shrink to the grid track */
   }
   .scenario-step input:focus, .scenario-step select:focus { border-color: var(--primary); }
   .scenario-step input:focus-visible, .scenario-step select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-  /* pairs stack when the column is too narrow — fixed 1fr 1fr made inputs overlap */
+  /* pairs stack when the column is too narrow - fixed 1fr 1fr made inputs overlap */
   .scenario-step .row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; }
   .scenario-step .row2 > * { min-width: 0; }
   .scenario-step button.run {
     font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-    padding: 6px 10px; border: none; border-radius: 5px;
+    padding: 6px 10px; border: none; border-radius: 8px;
     background: var(--primary); color: #fff; cursor: pointer;
     width: 100%;
     transition: background 0.2s, filter 0.2s, transform 0.1s;
@@ -395,7 +402,7 @@
   .scenario-step button.run.ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
   .scenario-step .run-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
   .demo-result {
-    margin: 0 12px 12px; border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+    margin: 0 12px 12px; border: 1px solid var(--border); border-radius: 12px; padding: 12px;
     background: var(--surface2); display: grid; gap: 8px;
   }
   .demo-result[hidden] { display: none; }
@@ -410,7 +417,7 @@
   .demo-result .result-headers { color: var(--text-dim); font-size: 11px; }
   .demo-result pre.result-body {
     margin: 0; max-height: 220px; overflow: auto; font-family: var(--font-mono); font-size: 11px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
     white-space: pre-wrap; overflow-wrap: break-word; color: var(--text);
   }
   .demo-result #result-continue { justify-self: start; width: auto; }
@@ -448,7 +455,7 @@
   .demo-entry pre.err { color: var(--danger); }
   .demo-empty { color: var(--text-dim); font-size: 11.5px; opacity: 0.75; padding: 2px; }
   .demo-tip { font-size: 12px; color: var(--text-dim); line-height: 1.65; margin-top: 12px; }
-  .demo-tip code { font-family: var(--font-mono); font-size: 11px; background: var(--primary-dim); color: var(--primary); padding: 1px 5px; border-radius: 3px; }
+  .demo-tip code { font-family: var(--font-mono); font-size: 11px; background: var(--primary-dim); color: var(--primary); padding: 1px 5px; border-radius: 4px; }
   .mode-pill {
     font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase;
     letter-spacing: 1px; padding: 2px 8px; border-radius: 20px;
@@ -515,12 +522,12 @@
   <div class="main" id="main-content">
 
     <h1 class="animate" style="--i:0">Disbursement API Submission</h1>
-    <p class="subtitle animate" style="--i:1">LintasPay · Senior Backend Developer assessment · technical explainer</p>
+    <p class="subtitle animate" style="--i:1">LintasPay, Senior Backend Developer assessment, technical explainer</p>
     <p class="animate" style="--i:2"><a class="repo-link" href="https://github.com/yusoofsh/disbursement-api">github.com/yusoofsh/disbursement-api</a></p>
     <p class="animate" style="--i:3"><a class="demo-cta" href="#s-demo">Try the live demo →</a></p>
 
     <!-- ================= OVERVIEW ================= -->
-    <div class="sec-head animate" id="s-overview"><span class="num">01</span>Overview</div>
+    <div class="sec-head animate" id="s-overview">Overview</div>
     <p class="sec-desc">
       A disbursement service engineered around one question: <em>what happens when things go wrong at the worst moment?</em>
       Duplicate client retries, two admins approving at once, audit writes failing mid-request, tokens leaking after logout.
@@ -529,24 +536,24 @@
     <div class="grid cols-4">
       <div class="card kpi ok"><div class="value">70/70</div><div class="label">tests passing (14 files)</div></div>
       <div class="card kpi ok"><div class="value">CI ✓</div><div class="label">GitHub Actions green on clean runner</div></div>
-      <div class="card kpi"><div class="value">5</div><div class="label">tables · constraints + partial indexes</div></div>
-      <div class="card kpi"><div class="value">9</div><div class="label">endpoints · OpenAPI documented</div></div>
+      <div class="card kpi"><div class="value">5</div><div class="label">tables, constraints + partial indexes</div></div>
+      <div class="card kpi"><div class="value">9</div><div class="label">endpoints, OpenAPI documented</div></div>
     </div>
     <div class="grid cols-3">
-      <div class="card"><span class="tag">stack</span><h3>Runtime</h3><p>Node.js 22+ · TypeScript strict · Fastify 5 · Pino JSON logs · Zod + JSON Schema validation</p></div>
-      <div class="card"><span class="tag">stack</span><h3>Data</h3><p>PostgreSQL 16 · Drizzle ORM (node-postgres) · migrations via drizzle-kit · Argon2id password hashing</p></div>
+      <div class="card"><span class="tag">stack</span><h3>Runtime</h3><p>Node.js 22+, TypeScript strict, Fastify 5, Pino JSON logs, Zod + JSON Schema validation</p></div>
+      <div class="card"><span class="tag">stack</span><h3>Data</h3><p>PostgreSQL 16, Drizzle ORM (node-postgres), migrations via drizzle-kit, Argon2id password hashing</p></div>
       <div class="card"><span class="tag">stack</span><h3>Shape</h3><p>Layered: routes → service → repository. Business rules live in services/policy, never in handlers.</p></div>
     </div>
 
     <!-- ================= ARCHITECTURE ================= -->
-    <div class="sec-head" id="s-arch"><span class="num">02</span>System Architecture</div>
+    <div class="sec-head" id="s-arch">System Architecture</div>
     <p class="sec-desc">
       A single Fastify instance fronts PostgreSQL. Every request gets a UUID request id (echoed as
       <code>X-Request-ID</code>), passes rate limiting, JWT authentication, and a role guard before touching a service.
-      Audit writes happen <strong>after</strong> the primary transaction commits — a failure there is logged, never propagated.
+      Audit writes happen <strong>after</strong> the primary transaction commits - a failure there is logged, never propagated.
     </p>
     <section class="diagram-shell" id="schema-diagram">
-      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit</p>
+      <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom, drag to pan, double-click to fit</p>
       <div class="mermaid-wrap">
         <div class="zoom-controls">
           <button type="button" data-action="zoom-in">+</button>
@@ -561,28 +568,28 @@
       <script type="text/plain" class="diagram-source">
         flowchart TD
           Client["API Client"] -->|"HTTP + Bearer JWT"| RL["Rate Limiter<br/>user sub / IP bucket"]
-          RL --> RID["Request Context<br/>UUID · X-Request-ID"]
+          RL --> RID["Request Context<br/>UUID, X-Request-ID"]
           RID --> AUTH{"Route under<br/>/auth/* ?"}
-          AUTH -->|"yes"| AUTHH["Auth Handlers<br/>login · refresh · logout"]
+          AUTH -->|"yes"| AUTHH["Auth Handlers<br/>login, refresh, logout"]
           AUTH -->|"no"| JWT["JWT Verify<br/>15min access token"]
           JWT --> ROLE{"Role guard<br/>requireRole()"}
-          ROLE --> SVC["Services<br/>business rules · fees · RBAC"]
-          AUTHH --> AUTHS["Auth Service<br/>Argon2id · token rotation"]
+          ROLE --> SVC["Services<br/>business rules, fees, RBAC"]
+          AUTHH --> AUTHS["Auth Service<br/>Argon2id, token rotation"]
           SVC --> REPO["Repositories<br/>atomic SQL only"]
           AUTHS --> DB[("PostgreSQL 16")]
           REPO --> DB
-          SVC -.->|"after commit<br/>non-blocking"| AUD["Audit Log Service<br/>catch · log · never fail"]
+          SVC -.->|"after commit<br/>non-blocking"| AUD["Audit Log Service<br/>catch, log, never fail"]
           AUD -.-> DB
-          DB --> TABLES["users · refresh_tokens<br/>disbursements<br/>idempotency_keys · audit_logs"]
+          DB --> TABLES["users, refresh_tokens<br/>disbursements<br/>idempotency_keys, audit_logs"]
       </script>
     </section>
 
     <!-- ================= IDEMPOTENCY ================= -->
-    <div class="sec-head" id="s-idem"><span class="num">03</span>Idempotency — Safe Retries</div>
+    <div class="sec-head" id="s-idem">Idempotency - Safe Retries</div>
     <p class="sec-desc">
       <code>POST /disbursements</code> accepts an optional <code>Idempotency-Key</code> (UUID). The key is scoped per user
       via <code>UNIQUE(user_id, idempotency_key)</code>; the payload is normalized to a fixed field order and SHA-256 hashed.
-      The exact response (status + body) is persisted for 24 hours — never in memory, so replays survive restarts and
+      The exact response (status + body) is persisted for 24 hours - never in memory, so replays survive restarts and
       horizontal scaling. Two simultaneous first uses are serialized by a transaction-scoped advisory lock.
     </p>
     <section class="diagram-shell">
@@ -612,7 +619,7 @@
           else key exists, different hash
             A-->>C: 409 IDEMPOTENCY_KEY_REUSED
           else first use (or expired)
-            A->>DB: BEGIN · pg_advisory_xact_lock(user, K)
+            A->>DB: BEGIN, pg_advisory_xact_lock(user, K)
             A->>DB: re-check inside lock
             A->>DB: delete expired row if present
             A->>DB: INSERT disbursement (fee from amount)
@@ -621,26 +628,26 @@
             A-->>C: 201 + fresh body<br/>X-Idempotent-Replayed: false
             A->>DB: audit log "created" (post-commit, non-blocking)
           end
-          Note over C,A: concurrent duplicate waits on the advisory lock,<br/>then replays — exactly one row, one audit event
+          Note over C,A: concurrent duplicate waits on the advisory lock,<br/>then replays - exactly one row, one audit event
       </script>
     </section>
     <div class="grid cols-3">
       <div class="card"><span class="tag">guarantee</span><h3>Byte-identical replay</h3><p>The stored response body is returned verbatim with <code>X-Idempotent-Replayed: true</code>. No second disbursement, no second audit event.</p></div>
-      <div class="card"><span class="tag">guarantee</span><h3>Payload mismatch → 409</h3><p>Same key, different normalized payload returns <code>IDEMPOTENCY_KEY_REUSED</code> — the client learns its retry drifted instead of silently double-paying.</p></div>
+      <div class="card"><span class="tag">guarantee</span><h3>Payload mismatch → 409</h3><p>Same key, different normalized payload returns <code>IDEMPOTENCY_KEY_REUSED</code> - the client learns its retry drifted instead of silently double-paying.</p></div>
       <div class="card"><span class="tag tradeoff">trade-off</span><h3>Storage for certainty</h3><p>Full response bodies are stored for 24h and expired rows are replaced on reuse. A cleanup job is possible but intentionally omitted.</p></div>
     </div>
     <div class="callout">
-      <strong>Why not in-memory?</strong> A process-local cache breaks across instances and vanishes on restart — precisely
+      <strong>Why not in-memory?</strong> A process-local cache breaks across instances and vanishes on restart - precisely
       when clients retry most. The unique constraint plus advisory lock makes PostgreSQL the single arbiter, so the
       guarantee holds no matter how many app instances run.
     </div>
 
     <!-- ================= CONCURRENCY ================= -->
-    <div class="sec-head" id="s-conc"><span class="num">04</span>Concurrency — Exactly One Winner</div>
+    <div class="sec-head" id="s-conc">Concurrency - Exactly One Winner</div>
     <p class="sec-desc">
       Status transitions use an atomic compare-and-set: the <code>WHERE status = 'PENDING'</code> predicate is evaluated
       by PostgreSQL while updating. Under a race, the first update locks and changes the row; every other request matches
-      zero rows and gets a typed <code>409 DISBURSEMENT_NOT_PENDING</code> — never a generic 500.
+      zero rows and gets a typed <code>409 DISBURSEMENT_NOT_PENDING</code> - never a generic 500.
     </p>
     <pre><span class="k">UPDATE</span> disbursements
 <span class="k">SET</span> status = $1, approved_by = $2, updated_at = NOW()
@@ -682,12 +689,12 @@
       </script>
     </section>
     <div class="grid cols-2">
-      <div class="card"><span class="tag">chosen</span><h3>Optimistic CAS (one round trip)</h3><ul><li>No time-of-check-to-time-of-use window</li><li>Row lock held only for the update itself</li><li>No app-level coordination — scales across instances</li><li>Simple under high contention</li></ul></div>
-      <div class="card"><span class="tag tradeoff">rejected</span><h3>Read-then-write / SELECT FOR UPDATE</h3><ul><li>Read-then-write without a lock has a race window — both requests can read PENDING and both "win"</li><li><code>FOR UPDATE</code> serializes contenders inside a longer transaction and blocks while held</li><li>CAS cost: one follow-up lookup to distinguish 404 from 409</li></ul></div>
+      <div class="card"><span class="tag">chosen</span><h3>Optimistic CAS (one round trip)</h3><ul><li>No time-of-check-to-time-of-use window</li><li>Row lock held only for the update itself</li><li>No app-level coordination - scales across instances</li><li>Simple under high contention</li></ul></div>
+      <div class="card"><span class="tag tradeoff">rejected</span><h3>Read-then-write / SELECT FOR UPDATE</h3><ul><li>Read-then-write without a lock has a race window - both requests can read PENDING and both "win"</li><li><code>FOR UPDATE</code> serializes contenders inside a longer transaction and blocks while held</li><li>CAS cost: one follow-up lookup to distinguish 404 from 409</li></ul></div>
     </div>
 
     <!-- ================= AUTH ================= -->
-    <div class="sec-head" id="s-authn"><span class="num">05</span>Authentication Lifecycle</div>
+    <div class="sec-head" id="s-authn">Authentication Lifecycle</div>
     <p class="sec-desc">
       Access tokens live 15 minutes; refresh tokens 7 days. Only the <strong>SHA-256 hash</strong> of a refresh token is
       stored. Refresh <em>rotates</em>: the presented token is revoked and a fresh pair issued. Logout sets
@@ -722,17 +729,17 @@
     </section>
 
     <!-- ================= RBAC ================= -->
-    <div class="sec-head" id="s-rbac"><span class="num">06</span>RBAC Matrix</div>
-    <p class="sec-desc">Enforced server-side by <code>requireRole()</code> pre-handlers — never by the client. Seeded users: <code>superadmin</code>, <code>admin</code>, <code>operator</code>.</p>
+    <div class="sec-head" id="s-rbac">RBAC Matrix</div>
+    <p class="sec-desc">Enforced server-side by <code>requireRole()</code> pre-handlers - never by the client. Seeded users: <code>superadmin</code>, <code>admin</code>, <code>operator</code>.</p>
     <div class="table-wrap">
       <table>
         <caption>endpoint × role</caption>
         <thead><tr><th>Endpoint</th><th><span class="pill pub">public</span></th><th><span class="pill op">operator</span></th><th><span class="pill ad">admin</span></th><th><span class="pill sa">superadmin</span></th></tr></thead>
         <tbody>
-          <tr><td><span class="m">POST /auth/login · /refresh · /logout</span></td><td class="yes">✓</td><td>—</td><td>—</td><td>—</td></tr>
-          <tr><td><span class="m">GET /health · /documentation</span></td><td class="yes">✓</td><td>—</td><td>—</td><td>—</td></tr>
-          <tr><td><span class="m">GET /disbursements · GET /:id</span></td><td class="no">401</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-          <tr><td><span class="m">POST /disbursements · /batch</span></td><td class="no">401</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td><span class="m">POST /auth/login, /refresh, /logout</span></td><td class="yes">✓</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td><span class="m">GET /health, /documentation</span></td><td class="yes">✓</td><td>-</td><td>-</td><td>-</td></tr>
+          <tr><td><span class="m">GET /disbursements, GET /:id</span></td><td class="no">401</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td><span class="m">POST /disbursements, /batch</span></td><td class="no">401</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
           <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td class="no">401</td><td class="no">403</td><td class="yes">✓</td><td class="yes">✓</td></tr>
           <tr><td><span class="m">DELETE /disbursements/:id</span> (soft, PENDING only)</td><td class="no">401</td><td class="no">403</td><td class="no">403</td><td class="yes">✓</td></tr>
           <tr><td><span class="m">GET /audit-logs</span></td><td class="no">401</td><td class="no">403</td><td class="no">403</td><td class="yes">✓</td></tr>
@@ -741,7 +748,7 @@
     </div>
 
     <!-- ================= SCHEMA ================= -->
-    <div class="sec-head" id="s-schema"><span class="num">07</span>Data Model</div>
+    <div class="sec-head" id="s-schema">Data Model</div>
     <p class="sec-desc">
       Five tables, UUID keys throughout. Integrity lives in the database: check constraints on amount, fee, status and
       role; partial indexes on live (<code>deleted_at IS NULL</code>) rows; audit rows deliberately have <strong>no</strong>
@@ -774,7 +781,7 @@
           refresh_tokens {
             uuid id PK
             uuid user_id FK
-            text token_hash "UNIQUE · sha256 only"
+            text token_hash "UNIQUE, sha256 only"
             timestamptz expires_at "indexed"
             timestamptz revoked_at "nullable"
           }
@@ -797,7 +804,7 @@
           }
           audit_logs {
             uuid id PK
-            uuid entity_id "NO FK — retention"
+            uuid entity_id "NO FK - retention"
             varchar action "created/status_changed/deleted"
             jsonb before
             jsonb after
@@ -806,46 +813,46 @@
       </script>
     </section>
     <div class="grid cols-3">
-      <div class="card"><span class="tag">indexing</span><h3>Partial indexes</h3><p><code>(status, created_at DESC)</code>, <code>(created_at DESC)</code>, <code>(amount)</code> — all <code>WHERE deleted_at IS NULL</code>, matching every list query's filter.</p></div>
+      <div class="card"><span class="tag">indexing</span><h3>Partial indexes</h3><p><code>(status, created_at DESC)</code>, <code>(created_at DESC)</code>, <code>(amount)</code> - all <code>WHERE deleted_at IS NULL</code>, matching every list query's filter.</p></div>
       <div class="card"><span class="tag">integrity</span><h3>Defense in depth</h3><p>App validates with JSON Schema; the database re-checks with constraints. A buggy deploy cannot write a negative amount or an unknown status.</p></div>
-      <div class="card"><span class="tag tradeoff">deliberate</span><h3>No audit FK</h3><p><code>audit_logs.entity_id</code> carries no cascading foreign key — soft-deleted or purged rows must never take the audit trail with them.</p></div>
+      <div class="card"><span class="tag tradeoff">deliberate</span><h3>No audit FK</h3><p><code>audit_logs.entity_id</code> carries no cascading foreign key - soft-deleted or purged rows must never take the audit trail with them.</p></div>
     </div>
 
     <!-- ================= AUDIT ================= -->
-    <div class="sec-head" id="s-audit"><span class="num">08</span>Audit Logging — Honest Non-Blocking</div>
+    <div class="sec-head" id="s-audit">Audit Logging - Honest Non-Blocking</div>
     <p class="sec-desc">
       The spec requires audit failure to never block the main operation. The implementation takes the simplest honest
       reading: commit the primary transaction first, then insert the audit row; on failure, log a structured error with
-      <code>request_id</code>, entity and action — and still return success.
+      <code>request_id</code>, entity and action - and still return success.
     </p>
     <div class="grid cols-2">
-      <div class="card"><span class="tag">what this buys</span><h3>Availability of the money path</h3><p>An audit-table outage can never block an approval. Every mutation — <code>created</code>, <code>status_changed</code>, <code>deleted</code> — is attempted with before/after jsonb snapshots and the originating request id.</p></div>
-      <div class="card"><span class="tag tradeoff">what it costs</span><h3>Possible audit loss</h3><p>A failed insert is lost (only logged). This is documented, not hidden: the production evolution is a transactional outbox — write the event in the same transaction, deliver via a background worker.</p></div>
+      <div class="card"><span class="tag">what this buys</span><h3>Availability of the money path</h3><p>An audit-table outage can never block an approval. Every mutation - <code>created</code>, <code>status_changed</code>, <code>deleted</code> - is attempted with before/after jsonb snapshots and the originating request id.</p></div>
+      <div class="card"><span class="tag tradeoff">what it costs</span><h3>Possible audit loss</h3><p>A failed insert is lost (only logged). This is documented, not hidden: the production evolution is a transactional outbox - write the event in the same transaction, deliver via a background worker.</p></div>
     </div>
     <div class="callout sage">
       <strong>Observability contract.</strong> Every request emits structured JSON logs carrying <code>reqId</code>, method,
-      path, status and latency; the same id is returned as <code>X-Request-ID</code> on every response — including 4xx/5xx —
+      path, status and latency; the same id is returned as <code>X-Request-ID</code> on every response - including 4xx/5xx -
       so a client-reported id greps straight to the full request trace. Passwords, tokens and JWTs are never logged.
     </div>
 
     <!-- ================= API ================= -->
-    <div class="sec-head" id="s-api"><span class="num">09</span>API Surface</div>
+    <div class="sec-head" id="s-api">API Surface</div>
     <p class="sec-desc">One response contract everywhere: <code>{ success, data, meta? }</code> or <code>{ success: false, error: { code, message } }</code>. Raw database errors never reach clients.</p>
     <div class="table-wrap">
       <table>
-        <caption>endpoints · status codes</caption>
+        <caption>endpoints, status codes</caption>
         <thead><tr><th>Endpoint</th><th>Success</th><th>Error cases</th></tr></thead>
         <tbody>
-          <tr><td><span class="m">POST /auth/login</span></td><td><span class="m">200</span> token pair (15m / 7d)</td><td><span class="m">400 · 401 · 429</span> (10/min per IP)</td></tr>
+          <tr><td><span class="m">POST /auth/login</span></td><td><span class="m">200</span> token pair (15m / 7d)</td><td><span class="m">400, 401, 429</span> (10/min per IP)</td></tr>
           <tr><td><span class="m">POST /auth/refresh</span></td><td><span class="m">200</span> rotated pair</td><td><span class="m">401</span> revoked/expired/unknown</td></tr>
           <tr><td><span class="m">POST /auth/logout</span></td><td><span class="m">200</span> revoked</td><td><span class="m">401</span> invalid token</td></tr>
-          <tr><td><span class="m">GET /disbursements</span></td><td><span class="m">200</span> page + meta</td><td><span class="m">400</span> bad filter/date · <span class="m">401</span></td></tr>
+          <tr><td><span class="m">GET /disbursements</span></td><td><span class="m">200</span> page + meta</td><td><span class="m">400</span> bad filter/date, <span class="m">401</span></td></tr>
           <tr><td><span class="m">GET /disbursements/:id</span></td><td><span class="m">200</span></td><td><span class="m">404</span> (soft-deleted = not found)</td></tr>
-          <tr><td><span class="m">GET /disbursements/export</span></td><td><span class="m">200</span> CSV attachment</td><td><span class="m">400 · 401</span> bad filter / unauthenticated</td></tr>
-          <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400 · 401 · 409 · 429</span> key reuse · 30/min per user</td></tr>
-          <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400 · 429</span> invalid item · 30/min per user</td></tr>
-          <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td><span class="m">200</span></td><td><span class="m">403 · 404 · 409</span> not pending</td></tr>
-          <tr><td><span class="m">DELETE /disbursements/:id</span></td><td><span class="m">200</span> + success JSON (soft delete)</td><td><span class="m">403 · 404 · 409</span></td></tr>
+          <tr><td><span class="m">GET /disbursements/export</span></td><td><span class="m">200</span> CSV attachment</td><td><span class="m">400, 401</span> bad filter / unauthenticated</td></tr>
+          <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400, 401, 409, 429</span> key reuse, 30/min per user</td></tr>
+          <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400, 429</span> invalid item, 30/min per user</td></tr>
+          <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td><span class="m">200</span></td><td><span class="m">403, 404, 409</span> not pending</td></tr>
+          <tr><td><span class="m">DELETE /disbursements/:id</span></td><td><span class="m">200</span> + success JSON (soft delete)</td><td><span class="m">403, 404, 409</span></td></tr>
           <tr><td><span class="m">GET /audit-logs</span></td><td><span class="m">200</span> newest first</td><td><span class="m">403</span> non-superadmin</td></tr>
           <tr><td><span class="m">GET /health</span></td><td><span class="m">200</span></td><td><span class="m">503</span> database unavailable</td></tr>
         </tbody>
@@ -853,14 +860,14 @@
     </div>
 
     <!-- ================= DECISIONS ================= -->
-    <div class="sec-head" id="s-decisions"><span class="num">10</span>Decisions &amp; Trade-offs</div>
+    <div class="sec-head" id="s-decisions">Decisions &amp; Trade-offs</div>
     <div class="table-wrap">
       <table>
         <caption>what was chosen, what was rejected, why</caption>
         <thead><tr><th>Decision</th><th>Chosen</th><th>Rejected</th><th>Reasoning</th></tr></thead>
         <tbody>
           <tr><td>Idempotency storage</td><td>PostgreSQL + unique constraint</td><td>in-memory cache, Redis</td><td>Survives restarts and multi-instance deploys; the DB is already the arbiter of record</td></tr>
-          <tr><td>First-use race</td><td><span class="m">pg_advisory_xact_lock(user, key)</span></td><td>insert-first state machine</td><td>Lock auto-releases on commit/rollback; loser re-checks and replays — no orphaned PROCESSING rows</td></tr>
+          <tr><td>First-use race</td><td><span class="m">pg_advisory_xact_lock(user, key)</span></td><td>insert-first state machine</td><td>Lock auto-releases on commit/rollback; loser re-checks and replays - no orphaned PROCESSING rows</td></tr>
           <tr><td>Status transition</td><td>atomic conditional UPDATE</td><td>read-then-write, SELECT FOR UPDATE</td><td>One round trip, no TOCTOU window, minimal lock duration</td></tr>
           <tr><td>Refresh tokens</td><td>hashed storage + rotation</td><td>stateless-only JWTs</td><td>Logout must actually revoke; rotation limits replay window of a leaked token</td></tr>
           <tr><td>Audit durability</td><td>post-commit, non-blocking</td><td>same-transaction write</td><td>Spec requires non-blocking; loss risk documented, outbox named as the evolution</td></tr>
@@ -873,10 +880,10 @@
     </div>
 
     <!-- ================= VERIFICATION ================= -->
-    <div class="sec-head" id="s-verify"><span class="num">11</span>Verification</div>
-    <p class="sec-desc">Every claim above was executed, not assumed. Integration tests run against a real PostgreSQL database — including the two concurrency races.</p>
+    <div class="sec-head" id="s-verify">Verification</div>
+    <p class="sec-desc">Every claim above was executed, not assumed. Integration tests run against a real PostgreSQL database - including the two concurrency races.</p>
     <div class="grid cols-4">
-      <div class="card kpi ok"><div class="value">70</div><div class="label">tests · 14 files · 0 failures</div></div>
+      <div class="card kpi ok"><div class="value">70</div><div class="label">tests, 14 files, 0 failures</div></div>
       <div class="card kpi ok"><div class="value">0</div><div class="label">tsc --noEmit errors (strict)</div></div>
       <div class="card kpi ok"><div class="value">1m06s</div><div class="label">CI: install → migrate → seed → test</div></div>
       <div class="card kpi ok"><div class="value">✓</div><div class="label">docker compose up --build smoke</div></div>
@@ -888,19 +895,19 @@
         <tbody>
           <tr><td>Two concurrent approvals</td><td>exactly one <span class="m">200</span> + one <span class="m">409</span>, final status correct, exactly one <span class="m">status_changed</span> audit row</td></tr>
           <tr><td>Two concurrent creates, same key</td><td>identical bodies, exactly one replayed, one disbursement row, one idempotency row</td></tr>
-          <tr><td>Expired key reuse</td><td>fresh <span class="m">201</span> (not a stale replay), expired row replaced — a real bug the test exposed and fixed</td></tr>
+          <tr><td>Expired key reuse</td><td>fresh <span class="m">201</span> (not a stale replay), expired row replaced - a real bug the test exposed and fixed</td></tr>
           <tr><td>Token lifecycle</td><td>login → refresh rotates (old token 401) → logout revokes → reuse 401</td></tr>
           <tr><td>RBAC</td><td>operator PATCH → 403, admin DELETE → 403, operator audit-logs → 403, superadmin all ✓</td></tr>
           <tr><td>Soft delete</td><td><span class="m">200</span> + success JSON → GET 404 → list excludes → row physically present in DB</td></tr>
-          <tr><td>Fee boundaries</td><td>10,000→2500 · 4,999,999→2500 · 5,000,000→5000 · &lt;10,000 and non-integer → 400</td></tr>
+          <tr><td>Fee boundaries</td><td>10,000→2500, 4,999,999→2500, 5,000,000→5000, &lt;10,000 and non-integer → 400</td></tr>
           <tr><td>Rate limiting</td><td>11th login attempt in a minute → <span class="m">429 RATE_LIMITED</span>; a user's 31st create in a minute is limited while a different user (same IP) still succeeds</td></tr>
         </tbody>
       </table>
     </div>
 
     <!-- ================= RUN ================= -->
-    <div class="sec-head" id="s-run"><span class="num">12</span>Run &amp; Deploy</div>
-<pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
+    <div class="sec-head" id="s-run">Run &amp; Deploy</div>
+<pre><span class="c"># Docker (recommended) - migrations run automatically on start</span>
 docker compose up -d          <span class="c"># uses ghcr.io/yusoofsh/disbursement-api:latest</span>
 docker compose exec api node dist/db/seed.js
 
@@ -910,18 +917,18 @@ pnpm install && pnpm db:migrate && pnpm db:seed
 pnpm dev           <span class="c"># http://localhost:3000</span>
 pnpm test          <span class="c"># 70 tests</span></pre>
     <div class="grid cols-3">
-      <div class="card"><span class="tag">try it</span><h3>Swagger UI</h3><p><code>GET /documentation</code> — full OpenAPI 3 docs with the Bearer scheme and per-route response schemas.</p></div>
-      <div class="card"><span class="tag">try it</span><h3>Seed credentials</h3><p><code>superadmin/superadmin123</code> · <code>admin/admin123</code> · <code>operator/operator123</code></p></div>
-      <div class="card"><span class="tag">try it</span><h3>See the race</h3><p>Fire two <code>PATCH …/status</code> calls in parallel — one wins with 200, the other gets a clean 409.</p></div>
+      <div class="card"><span class="tag">try it</span><h3>Swagger UI</h3><p><code>GET /documentation</code> - full OpenAPI 3 docs with the Bearer scheme and per-route response schemas.</p></div>
+      <div class="card"><span class="tag">try it</span><h3>Seed credentials</h3><p><code>superadmin/superadmin123</code>, <code>admin/admin123</code>, <code>operator/operator123</code></p></div>
+      <div class="card"><span class="tag">try it</span><h3>See the race</h3><p>Fire two <code>PATCH …/status</code> calls in parallel - one wins with 200, the other gets a clean 409.</p></div>
     </div>
 
     <!-- ================= LIVE DEMO ================= -->
-    <div class="sec-head" id="s-demo"><span class="num">13</span>Live Demo</div>
+    <div class="sec-head" id="s-demo">Live Demo</div>
     <p class="sec-desc">
-      This console drives the <strong>deployed API</strong> — same endpoints, same auth, same race behavior.
+      This console drives the <strong>deployed API</strong> - same endpoints, same auth, same race behavior.
       If <code>disbursement.yusoofsh.cloud</code> can't be reached, it automatically switches to a clearly-labeled
-      <strong>in-browser simulator</strong> that implements the same contract — seeded users, RBAC, idempotent
-      replay, the 409 race loser, soft delete and audit trail — so everything below is demonstrable either way.
+      <strong>in-browser simulator</strong> that implements the same contract - seeded users, RBAC, idempotent
+      replay, the 409 race loser, soft delete and audit trail - so everything below is demonstrable either way.
       Tokens live only in this page's memory (never localStorage). Point the console at another instance with
       <code>?api=http://127.0.0.1:3000</code>.
     </p>
@@ -973,7 +980,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
             </div>
           </section>
           <section class="scenario-step" data-step="3">
-            <div class="step-head"><span class="step-badge">Step 3 ·</span><h4>Race — one winner</h4></div>
+            <div class="step-head"><span class="step-badge">Step 3 ·</span><h4>Race - one winner</h4></div>
             <input id="d-id" placeholder="disbursement id (auto-filled from create)">
             <div class="row2">
               <select id="d-status"><option value="APPROVED">APPROVED</option><option value="REJECTED">REJECTED</option></select>
@@ -997,7 +1004,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
           <pre class="result-body" id="result-body"></pre>
           <button class="run" type="button" id="result-continue">Continue →</button>
         </div>
-        <div class="demo-out" id="demo-out"><div class="demo-empty" id="demo-empty">responses appear here — log in, then create a disbursement.</div></div>
+        <div class="demo-out" id="demo-out"><div class="demo-empty" id="demo-empty">responses appear here - log in, then create a disbursement.</div></div>
       </div>
       <p class="demo-tip">
         <strong>Notes:</strong> in <em>live api</em> mode the deployed app must list this page's origin in
@@ -1007,13 +1014,13 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         the race fires two parallel <code>PATCH …/status</code> calls to demonstrate the
         <code>409 DISBURSEMENT_NOT_PENDING</code> loser path (exactly one winner), and
         <em>export</em> returns the same Excel-compatible CSV (<code>GET /disbursements/export</code>) as the API.
-        The scenario is a guided flow — steps unlock as you go, but you can jump with the pills at the top.
-        Response rows are collapsible — the newest expands, older ones fold away; click a row to toggle it.
+        The scenario is a guided flow - steps unlock as you go, but you can jump with the pills at the top.
+        Response rows are collapsible - the newest expands, older ones fold away; click a row to toggle it.
       </p>
     </div>
 
     <footer>
-      Disbursement API · Fastify 5 + PostgreSQL 16 + Drizzle · 70/70 tests · CI green ·
+      Disbursement API, Fastify 5 + PostgreSQL 16 + Drizzle, 70/70 tests, CI green,
       <a href="https://github.com/yusoofsh/disbursement-api">github.com/yusoofsh/disbursement-api</a>
     </footer>
 
@@ -1297,7 +1304,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
       const ok = r.status < 400;
       const statusText = (ok ? "✓ " : "✗ ") + r.status + " " + method + " " + path;
       const headers = [r.replayed ? "X-Idempotent-Replayed: " + r.replayed : null, r.reqId ? "x-request-id: " + String(r.reqId).slice(0, 8) : null]
-        .filter(Boolean).join("  ·  ");
+        .filter(Boolean).join(" ,  ");
       showResult(r.status, statusText, headers, r.text, continueLabel);
     }
 
@@ -1480,7 +1487,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
 
     /* ---------- transport: live fetch, or the simulator when the API is down ---------- */
     async function liveTransport(method, path, { body, token, idempotencyKey } = {}) {
-      // Only declare JSON when a body is actually sent — Fastify 400s on an
+      // Only declare JSON when a body is actually sent - Fastify 400s on an
       // empty body with content-type: application/json (broke DELETE).
       const headers = {};
       if (body !== undefined) headers["content-type"] = "application/json";
@@ -1602,7 +1609,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         clearTimeout(timer);
       }
       setMode("sim");
-      setStatus(false, "API not reachable — using the in-browser simulator (same contract)");
+      setStatus(false, "API not reachable - using the in-browser simulator (same contract)");
     }
 
     async function login() {
@@ -1614,10 +1621,10 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         const data = JSON.parse(r.text).data;
         accessToken = data.access_token;
         refreshToken = data.refresh_token;
-        setStatus(true, "authenticated as " + username + (mode === "sim" ? " (simulator)" : "") + " · access 15m · refresh 7d");
+        setStatus(true, "authenticated as " + username + (mode === "sim" ? " (simulator)" : "") + ", access 15m, refresh 7d");
         entry({ method: "info", path: "session", status: 200, reqId: null, replayed: null, text: JSON.stringify({ access_token: data.access_token.slice(0, 24) + "…", refresh_token: data.refresh_token.slice(0, 24) + "…", expires_in: data.expires_in }, null, 2) });
         markDone(1);
-        showResult(200, "✓ 200 Authenticated as " + username, "access 15m · refresh 7d · Bearer", JSON.stringify(data, null, 2), "Continue to create →");
+        showResult(200, "✓ 200 Authenticated as " + username, "access 15m, refresh 7d, Bearer", JSON.stringify(data, null, 2), "Continue to create →");
       } else {
         setStatus(false, "login failed (" + r.status + ")");
         showResult(r.status, "✗ " + r.status + " Login failed", null, r.text, "Try again");
@@ -1626,7 +1633,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
 
     function requireAuth() {
       if (!accessToken) {
-        fail("auth", "not authenticated", new Error("Not authenticated — click Login first."));
+        fail("auth", "not authenticated", new Error("Not authenticated - click Login first."));
         return false;
       }
       return true;
@@ -1642,7 +1649,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         note: document.getElementById("d-note").value || undefined,
       };
       if (replay && !lastIdempotencyKey) {
-        fail("POST", "/disbursements (replay)", new Error('No key in memory — click "Create (new key)" first.'));
+        fail("POST", "/disbursements (replay)", new Error('No key in memory - click "Create (new key)" first.'));
         return;
       }
       if (!replay) lastIdempotencyKey = crypto.randomUUID();
@@ -1669,7 +1676,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         if (r && r.status === 200) {
           setStatus(mode === "sim" ? null : true, mode === "sim" ? "simulator healthy (in-browser)" : "API reachable at " + API_BASE);
         } else {
-          setStatus(false, "unreachable — use the simulator or deploy the API (see Run & Deploy)");
+          setStatus(false, "unreachable - use the simulator or deploy the API (see Run & Deploy)");
         }
       },
       login,
@@ -1678,7 +1685,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         await call("POST", "/auth/logout", { body: { refresh_token: refreshToken } });
         accessToken = null;
         refreshToken = null;
-        setStatus(false, "logged out — tokens cleared");
+        setStatus(false, "logged out - tokens cleared");
       },
       flip: async () => {
         if (mode === "sim") {
@@ -1686,7 +1693,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
           await probe();
         } else {
           setMode("sim");
-          setStatus(null, "simulator mode — all actions below now run in-browser, same contract");
+          setStatus(null, "simulator mode - all actions below now run in-browser, same contract");
         }
       },
       create: () => create(false),
@@ -1708,9 +1715,9 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         markDone(3);
         showResult(
           won ? 200 : statuses[0],
-          won ? "✓ Exactly one winner — " + statuses.join(" / ") : "✗ " + statuses.join(" / "),
-          "two parallel PATCH ·status calls",
-          JSON.stringify({ statuses, note: won ? "one 200, the other 409 DISBURSEMENT_NOT_PENDING (loser path)" : "no 200 — inspect the responses" }, null, 2),
+          won ? "✓ Exactly one winner - " + statuses.join(" / ") : "✗ " + statuses.join(" / "),
+          "two parallel PATCH /status calls",
+          JSON.stringify({ statuses, note: won ? "one 200, the other 409 DISBURSEMENT_NOT_PENDING (loser path)" : "no 200 - inspect the responses" }, null, 2),
           "Continue to inspect →",
         );
       },
@@ -1754,7 +1761,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         const fn = actions[btn.dataset.demo];
         if (!fn) return;
         if (mode === "probing" && btn.dataset.demo !== "flip") {
-          setStatus(null, "still probing the API — one moment…");
+          setStatus(null, "still probing the API - one moment…");
           return;
         }
         void fn();
