@@ -223,6 +223,18 @@
   .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
   .mermaid-viewport { position: relative; overflow: hidden; width: 100%; height: 100%; min-height: 280px; }
   .mermaid-canvas { position: absolute; top: 0; left: 0; }
+  /* Mermaid ER diagrams (Data Model): the ER renderer paints each entity row
+     as a <path> with an inline hsl() fill that alternates light/dark. In dark
+     mode the light rows clash with the light text, making it unreadable. Pin
+     the row fills to the surface and the label text to the text color so both
+     schemes stay readable (these classes are ER-specific). */
+  .mermaid svg .row-rect-odd path,
+  .mermaid svg .row-rect-even path { fill: var(--surface2) !important; }
+  .mermaid svg .label.name,
+  .mermaid svg .label.attribute-type,
+  .mermaid svg .label.attribute-name,
+  .mermaid svg .label.attribute-keys,
+  .mermaid svg .label.attribute-comment { fill: var(--text) !important; color: var(--text) !important; }
   .zoom-controls {
     position: absolute; top: 8px; right: 8px; z-index: 10;
     display: flex; gap: 2px;
@@ -439,7 +451,7 @@
       <code>X-Request-ID</code>), passes rate limiting, JWT authentication, and a role guard before touching a service.
       Audit writes happen <strong>after</strong> the primary transaction commits — a failure there is logged, never propagated.
     </p>
-    <section class="diagram-shell">
+    <section class="diagram-shell" id="schema-diagram">
       <p class="diagram-shell__hint">Ctrl/Cmd + wheel to zoom · drag to pan · double-click to fit</p>
       <div class="mermaid-wrap">
         <div class="zoom-controls">
@@ -739,7 +751,7 @@
           <tr><td><span class="m">POST /disbursements</span></td><td><span class="m">201</span> + replay header</td><td><span class="m">400 · 401 · 409 · 429</span> key reuse · 30/min per user</td></tr>
           <tr><td><span class="m">POST /disbursements/batch</span></td><td><span class="m">201</span> all-or-nothing</td><td><span class="m">400 · 429</span> invalid item · 30/min per user</td></tr>
           <tr><td><span class="m">PATCH /disbursements/:id/status</span></td><td><span class="m">200</span></td><td><span class="m">403 · 404 · 409</span> not pending</td></tr>
-          <tr><td><span class="m">DELETE /disbursements/:id</span></td><td><span class="m">204</span> soft delete</td><td><span class="m">403 · 404 · 409</span></td></tr>
+          <tr><td><span class="m">DELETE /disbursements/:id</span></td><td><span class="m">200</span> + success JSON (soft delete)</td><td><span class="m">403 · 404 · 409</span></td></tr>
           <tr><td><span class="m">GET /audit-logs</span></td><td><span class="m">200</span> newest first</td><td><span class="m">403</span> non-superadmin</td></tr>
           <tr><td><span class="m">GET /health</span></td><td><span class="m">200</span></td><td><span class="m">503</span> database unavailable</td></tr>
         </tbody>
@@ -785,7 +797,7 @@
           <tr><td>Expired key reuse</td><td>fresh <span class="m">201</span> (not a stale replay), expired row replaced — a real bug the test exposed and fixed</td></tr>
           <tr><td>Token lifecycle</td><td>login → refresh rotates (old token 401) → logout revokes → reuse 401</td></tr>
           <tr><td>RBAC</td><td>operator PATCH → 403, admin DELETE → 403, operator audit-logs → 403, superadmin all ✓</td></tr>
-          <tr><td>Soft delete</td><td><span class="m">204</span> → GET 404 → list excludes → row physically present in DB</td></tr>
+          <tr><td>Soft delete</td><td><span class="m">200</span> + success JSON → GET 404 → list excludes → row physically present in DB</td></tr>
           <tr><td>Fee boundaries</td><td>10,000→2500 · 4,999,999→2500 · 5,000,000→5000 · &lt;10,000 and non-integer → 400</td></tr>
           <tr><td>Rate limiting</td><td>11th login attempt in a minute → <span class="m">429 RATE_LIMITED</span>; a user's 31st create in a minute is limited while a different user (same IP) still succeeds</td></tr>
         </tbody>
@@ -1291,7 +1303,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
           d.deleted_at = now();
           d.updated_at = now();
           audit("deleted", me, before, toApi(d));
-          return respond(204, undefined);
+          return okRes(toApi(d));
         }
 
         if (method === "GET" && path === "/audit-logs") {

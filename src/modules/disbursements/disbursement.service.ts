@@ -335,7 +335,7 @@ export class DisbursementService {
     id: string,
     requestId: string,
     log: FastifyBaseLogger,
-  ): Promise<void> {
+  ): Promise<DisbursementApi> {
     if (!canDeleteDisbursement(actor.role)) throw errors.forbidden();
 
     const before = await this.repo.findRawById(id);
@@ -361,5 +361,6 @@ export class DisbursementService {
       },
       log,
     );
+    return toApiDisbursement(deleted);
   }
 }

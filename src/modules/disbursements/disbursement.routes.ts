@@ -107,8 +107,8 @@ export function disbursementRoutes(
       { schema: idParamJsonSchema, preHandler: app.requireRole("superadmin") },
       async (request, reply) => {
         const { id } = request.params as { id: string };
-        await service.softDelete(toActor(request.user), id, request.id, request.log);
-        return reply.status(204).send();
+        const deleted = await service.softDelete(toActor(request.user), id, request.id, request.log);
+        return reply.send(success(deleted));
       },
     );
   };

@@ -143,8 +143,7 @@ export const idParamJsonSchema = {
   tags: ["disbursements"],
   security: [{ bearerAuth: [] }],
   response: {
-    200: { description: "The disbursement (GET only)", ...singleDisbursementResponse },
-    204: { description: "Soft-deleted (DELETE only)", type: "null" },
+    200: { description: "The disbursement (GET /:id) or the soft-deleted record (DELETE /:id)", ...singleDisbursementResponse },
     401: errorResponses[401],
     403: errorResponses[403],
     404: errorResponses[404],

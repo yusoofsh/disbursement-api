@@ -41,7 +41,7 @@ Node 22 · TypeScript (strict) · Fastify 5 · PostgreSQL 16 · Drizzle ORM · Z
 | `POST` | `/disbursements` | operator+ | optional `Idempotency-Key`; `201` |
 | `POST` | `/disbursements/batch` | operator+ | 1–100 creates, all-or-nothing |
 | `PATCH` | `/disbursements/:id/status` | admin+ | `PENDING` → approved/rejected; one winner under concurrency |
-| `DELETE` | `/disbursements/:id` | superadmin | soft delete, `PENDING` only, `204` |
+| `DELETE` | `/disbursements/:id` | superadmin | soft delete, `PENDING` only, `200` + success JSON |
 | `GET` | `/audit-logs` | superadmin | newest first, filterable |
 
 Every response carries `X-Request-ID` and uses `{ success, data, meta? }` / `{ success: false, error: { code, message } }`.

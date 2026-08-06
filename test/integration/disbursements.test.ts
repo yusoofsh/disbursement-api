@@ -352,7 +352,7 @@ describe("disbursements", () => {
   });
 
   describe("soft delete", () => {
-    it("soft deletes a pending record (204), then GET 404 and list excludes it", async () => {
+    it("soft deletes a pending record (200 + success JSON), then GET 404 and list excludes it", async () => {
       const created = await createDisbursement(app, superadmin.access_token, {
         recipient_name: "DEL-DeleteMe",
       });
@@ -363,7 +363,10 @@ describe("disbursements", () => {
         url: `/disbursements/${id}`,
         headers: bearer(superadmin.access_token),
       });
-      expect(del.statusCode).toBe(204);
+      expect(del.statusCode).toBe(200);
+      expect(del.json().success).toBe(true);
+      expect(del.json().data.id).toBe(id);
+      expect(del.json().data.deleted_at).not.toBeNull();
       expect(await countAuditLogs("deleted", id)).toBe(1);
 
       const get = await inject(app, {

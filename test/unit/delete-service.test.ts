@@ -84,8 +84,11 @@ describe("soft delete service", () => {
     const audit = new FakeAuditRepository();
     const service = makeService(repo, audit);
 
-    await service.softDelete(superadmin, pending.id, "req-1", logger);
+    const result = await service.softDelete(superadmin, pending.id, "req-1", logger);
     expect(repo.deletedCalls).toBe(1);
+    expect(result.id).toBe(pending.id);
+    expect(result.status).toBe("PENDING");
+    expect(result.deleted_at).toEqual(new Date("2026-08-06T11:00:00.000Z"));
     expect(audit.entries).toHaveLength(1);
     expect(audit.entries[0]).toMatchObject({
       entityId: pending.id,

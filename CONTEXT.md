@@ -663,7 +663,7 @@ Recommended status mapping:
 |---|---:|
 | Created | `201` |
 | Successful read/update | `200` |
-| Successful empty delete | `204` |
+| Successful delete | `200` + `{ success: true, data: <soft-deleted record> }` (chosen over `204`, so the response carries a body) |
 | Invalid body/query/header | `400` |
 | Invalid or missing authentication | `401` |
 | Authenticated but insufficient role | `403` |
