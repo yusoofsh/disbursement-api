@@ -235,6 +235,75 @@
   .callout strong { color: var(--text); }
   .callout.sage { border-left-color: var(--secondary); }
 
+  /* ============ LIVE DEMO CONSOLE ============ */
+  .demo-shell { margin-bottom: 8px; }
+  .demo-status {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .dot.ok { background: var(--secondary); }
+  .dot.bad { background: var(--danger); }
+  .demo-console {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden;
+  }
+  .demo-toolbar {
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+    padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .demo-toolbar button {
+    font-family: var(--font-mono); font-size: 11px;
+    padding: 5px 10px; border-radius: 5px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    cursor: pointer;
+  }
+  .demo-toolbar button:hover { border-color: var(--primary); color: var(--primary); }
+  .demo-toolbar .api-badge {
+    margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+    max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .demo-forms {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 10px; padding: 12px;
+  }
+  .demo-form { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .demo-form h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-family: var(--font-mono); }
+  .demo-form input, .demo-form select {
+    font-family: var(--font-mono); font-size: 11.5px;
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--surface); color: var(--text);
+  }
+  .demo-form input:focus, .demo-form select:focus { outline: none; border-color: var(--primary); }
+  .demo-form .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .demo-form button.run {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    padding: 6px 10px; border: none; border-radius: 5px;
+    background: var(--primary); color: #fff; cursor: pointer;
+  }
+  .demo-form button.run:hover { filter: brightness(1.08); }
+  .demo-out {
+    border-top: 1px solid var(--border); padding: 12px;
+    max-height: 420px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    font-family: var(--font-mono); font-size: 11.5px;
+  }
+  .demo-entry { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .demo-entry .head {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 6px 10px; background: var(--surface2); color: var(--text-dim);
+  }
+  .demo-entry .head .code { color: var(--text); }
+  .demo-entry .status { font-weight: 600; padding: 1px 7px; border-radius: 4px; }
+  .demo-entry .status.s2 { background: var(--secondary-dim); color: var(--secondary); }
+  .demo-entry .status.s4 { background: var(--primary-dim); color: var(--primary); }
+  .demo-entry .status.s5 { background: rgba(166, 58, 58, 0.12); color: var(--danger); }
+  .demo-entry pre { margin: 0; border: none; border-radius: 0; padding: 8px 10px; font-size: 10.5px; max-height: 200px; overflow: auto; background: var(--bg); }
+  .demo-entry pre.err { color: var(--danger); }
+  .demo-tip { font-size: 12px; color: var(--text-dim); line-height: 1.65; margin-top: 12px; }
+  .demo-tip code { font-family: var(--font-mono); font-size: 11px; background: var(--primary-dim); color: var(--primary); padding: 1px 5px; border-radius: 3px; }
+
   footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
 
   @media (max-width: 1000px) {
@@ -275,7 +344,8 @@
     <a href="#s-api">API Surface</a>
     <a href="#s-decisions">Decisions &amp; Trade-offs</a>
     <a href="#s-verify">Verification</a>
-    <a href="#s-run">Run It</a>
+    <a href="#s-demo">Live Demo</a>
+    <a href="#s-run">Run &amp; Deploy</a>
   </nav>
 
   <div class="main">
@@ -662,8 +732,76 @@
       </table>
     </div>
 
+    <!-- ================= LIVE DEMO ================= -->
+    <div class="sec-head" id="s-demo"><span class="num">12</span>Live Demo</div>
+    <p class="sec-desc">
+      This console drives the <strong>deployed API</strong> — same endpoints, same auth, same race behavior.
+      Tokens live only in this page's memory (never localStorage). The API domain is
+      <code>disbursement.yusoofsh.cloud</code>; until it is deployed you can point the console at a local
+      instance with <code>?api=http://127.0.0.1:3000</code>.
+    </p>
+    <div class="demo-shell">
+      <div class="demo-status">
+        <span class="dot" id="demo-dot"></span>
+        <span id="demo-status-text">checking API…</span>
+      </div>
+      <div class="demo-console">
+        <div class="demo-toolbar">
+          <button type="button" data-demo="health">Health</button>
+          <button type="button" data-demo="logout">Logout</button>
+          <span class="api-badge" id="demo-api-badge"></span>
+        </div>
+        <div class="demo-forms">
+          <div class="demo-form">
+            <h4>Login</h4>
+            <div class="row2">
+              <input id="d-user" placeholder="username" value="admin" spellcheck="false">
+              <input id="d-pass" type="password" placeholder="password" value="admin123">
+            </div>
+            <button class="run" type="button" data-demo="login">Login → tokens</button>
+          </div>
+          <div class="demo-form">
+            <h4>Create + replay</h4>
+            <input id="d-name" placeholder="recipient_name" value="Budi Santoso">
+            <div class="row2">
+              <input id="d-acct" placeholder="account_number" value="1234567890">
+              <input id="d-bank" placeholder="bank_code" value="BCA">
+            </div>
+            <div class="row2">
+              <input id="d-amount" type="number" placeholder="amount" value="1250000">
+              <input id="d-note" placeholder="note (optional)" value="Pembayaran supplier">
+            </div>
+            <button class="run" type="button" data-demo="create">Create (new key)</button>
+            <button class="run" type="button" data-demo="replay">Replay same key</button>
+          </div>
+          <div class="demo-form">
+            <h4>Approve / delete</h4>
+            <input id="d-id" placeholder="disbursement id (from create)">
+            <div class="row2">
+              <select id="d-status"><option value="APPROVED">APPROVED</option><option value="REJECTED">REJECTED</option></select>
+              <button class="run" type="button" data-demo="approve">PATCH status</button>
+            </div>
+            <button class="run" type="button" data-demo="delete">DELETE (soft, superadmin)</button>
+          </div>
+          <div class="demo-form">
+            <h4>Read</h4>
+            <button class="run" type="button" data-demo="list">GET /disbursements</button>
+            <button class="run" type="button" data-demo="get">GET /disbursements/:id</button>
+            <button class="run" type="button" data-demo="audit">GET /audit-logs</button>
+          </div>
+        </div>
+        <div class="demo-out" id="demo-out"></div>
+      </div>
+      <p class="demo-tip">
+        <strong>Notes:</strong> the deployed app must list this page's origin in <code>CORS_ORIGIN</code>
+        (see <a href="#s-run">Run &amp; Deploy</a>). Login is rate-limited to 10/min per IP.
+        Replay demonstrates <code>X-Idempotent-Replayed: true</code> with a byte-identical body;
+        approving twice demonstrates the <code>409 DISBURSEMENT_NOT_PENDING</code> loser path.
+      </p>
+    </div>
+
     <!-- ================= RUN ================= -->
-    <div class="sec-head" id="s-run"><span class="num">12</span>Run It</div>
+    <div class="sec-head" id="s-run"><span class="num">13</span>Run &amp; Deploy</div>
     <pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
 docker compose up -d --build
 docker compose exec api node dist/db/seed.js
@@ -894,6 +1032,202 @@ nub run test       <span class="c"># 51 tests</span></pre>
         }
       });
     });
+  })();
+</script>
+
+<script>
+  (function () {
+    "use strict";
+    const params = new URLSearchParams(location.search);
+    const API_BASE = (params.get("api") || "https://disbursement.yusoofsh.cloud").replace(/\/+$/, "");
+
+    let accessToken = null;
+    let refreshToken = null;
+    let lastIdempotencyKey = null;
+    let lastCreatedId = null;
+
+    const dot = document.getElementById("demo-dot");
+    const statusText = document.getElementById("demo-status-text");
+    const badge = document.getElementById("demo-api-badge");
+    const out = document.getElementById("demo-out");
+    badge.textContent = API_BASE;
+
+    function setStatus(ok, text) {
+      dot.className = "dot" + (ok ? " ok" : " bad");
+      statusText.textContent = text;
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    }
+
+    function entry(method, path, status, headers, bodyText) {
+      const time = new Date().toLocaleTimeString();
+      const cls = status >= 500 ? "s5" : status >= 400 ? "s4" : "s2";
+      const reqId = headers ? (headers.get("x-request-id") || "") : "";
+      const replayed = headers ? headers.get("x-idempotent-replayed") : null;
+      const el = document.createElement("div");
+      el.className = "demo-entry";
+      const head = document.createElement("div");
+      head.className = "head";
+      head.innerHTML =
+        "<span>" + esc(time) + "</span><span class='code'>" + esc(method) + " " + esc(path) + "</span>" +
+        "<span class='status " + cls + "'>" + status + "</span>" +
+        (reqId ? "<span>req " + esc(reqId.slice(0, 8)) + "</span>" : "") +
+        (replayed ? "<span style='color:var(--secondary)'>replayed=" + esc(replayed) + "</span>" : "");
+      const pre = document.createElement("pre");
+      let text;
+      try { text = JSON.stringify(JSON.parse(bodyText), null, 2); } catch { text = bodyText || ""; }
+      pre.textContent = text;
+      if (status >= 400) pre.className = "err";
+      el.appendChild(head);
+      el.appendChild(pre);
+      out.prepend(el);
+    }
+
+    function fail(method, path, err) {
+      const el = document.createElement("div");
+      el.className = "demo-entry";
+      const pre = document.createElement("pre");
+      pre.className = "err";
+      pre.textContent = method + " " + path + "\n" + (err && err.message ? err.message : String(err));
+      el.appendChild(pre);
+      out.prepend(el);
+    }
+
+    async function call(method, path, { body, token } = {}) {
+      const headers = { "content-type": "application/json" };
+      if (token) headers.authorization = "Bearer " + token;
+      let res;
+      try {
+        res = await fetch(API_BASE + path, {
+          method,
+          headers,
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+      } catch (err) {
+        fail(method, path, err);
+        return null;
+      }
+      const text = await res.text();
+      entry(method, path, res.status, res.headers, text);
+      if (text) { try { res.json = () => Promise.resolve(JSON.parse(text)); } catch { /* keep original */ } }
+      return res;
+    }
+
+    async function login() {
+      const username = document.getElementById("d-user").value;
+      const password = document.getElementById("d-pass").value;
+      const res = await call("POST", "/auth/login", { body: { username, password } });
+      if (!res) return;
+      if (res.status === 200) {
+        const data = res.json ? (await res.json()).data : null;
+        accessToken = data.access_token;
+        refreshToken = data.refresh_token;
+        setStatus(true, "authenticated as " + username + " · access 15m · refresh 7d");
+        if (data) entry("info", "session", 200, null, JSON.stringify({ access_token: data.access_token.slice(0, 24) + "…", refresh_token: data.refresh_token.slice(0, 24) + "…", expires_in: data.expires_in }, null, 2));
+      } else {
+        setStatus(false, "login failed (" + res.status + ")");
+      }
+    }
+
+    function requireAuth() {
+      if (!accessToken) {
+        out.prepend(Object.assign(document.createElement("div"), { className: "demo-entry" }));
+        const pre = document.createElement("pre");
+        pre.className = "err";
+        pre.textContent = "Not authenticated — click Login first.";
+        out.querySelector(".demo-entry").appendChild(pre);
+        return false;
+      }
+      return true;
+    }
+
+    async function create(replay) {
+      if (!requireAuth()) return;
+      const payload = {
+        recipient_name: document.getElementById("d-name").value,
+        account_number: document.getElementById("d-acct").value,
+        bank_code: document.getElementById("d-bank").value,
+        amount: Number(document.getElementById("d-amount").value),
+        note: document.getElementById("d-note").value || undefined,
+      };
+      const headers = { "content-type": "application/json", authorization: "Bearer " + accessToken };
+      if (replay && lastIdempotencyKey) {
+        headers["idempotency-key"] = lastIdempotencyKey;
+      } else if (!replay) {
+        lastIdempotencyKey = crypto.randomUUID();
+        headers["idempotency-key"] = lastIdempotencyKey;
+      }
+      let res;
+      try {
+        res = await fetch(API_BASE + "/disbursements", { method: "POST", headers, body: JSON.stringify(payload) });
+      } catch (err) { fail("POST", "/disbursements" + (replay ? " (replay)" : ""), err); return; }
+      const text = await res.text();
+      entry("POST", "/disbursements" + (replay ? " (replay)" : ""), res.status, res.headers, text);
+      if (res.status === 201 && text) {
+        const json = JSON.parse(text);
+        lastCreatedId = json.data.id;
+        document.getElementById("d-id").value = lastCreatedId;
+      }
+    }
+
+    const actions = {
+      health: async () => {
+        const res = await call("GET", "/health");
+        if (res && res.status === 200) setStatus(true, "API reachable at " + API_BASE);
+        else setStatus(false, "API unreachable — deploy it (see Run & Deploy) or use ?api=…");
+      },
+      login,
+      logout: async () => {
+        if (!refreshToken) { fail("POST", "/auth/logout", new Error("No refresh token in memory.")); return; }
+        await call("POST", "/auth/logout", { body: { refresh_token: refreshToken } });
+        accessToken = null;
+        refreshToken = null;
+        setStatus(false, "logged out — tokens cleared");
+      },
+      create: () => create(false),
+      replay: () => create(true),
+      approve: async () => {
+        if (!requireAuth()) return;
+        const id = document.getElementById("d-id").value;
+        if (!id) { fail("PATCH", "/disbursements/:id/status", new Error("Paste a disbursement id first.")); return; }
+        await call("PATCH", "/disbursements/" + id + "/status", {
+          token: accessToken,
+          body: { status: document.getElementById("d-status").value, note: "via demo console" },
+        });
+      },
+      delete: async () => {
+        if (!requireAuth()) return;
+        const id = document.getElementById("d-id").value;
+        if (!id) { fail("DELETE", "/disbursements/:id", new Error("Paste a disbursement id first.")); return; }
+        await call("DELETE", "/disbursements/" + id, { token: accessToken });
+      },
+      list: () => requireAuth() && call("GET", "/disbursements?limit=5", { token: accessToken }),
+      get: async () => {
+        if (!requireAuth()) return;
+        const id = document.getElementById("d-id").value;
+        if (!id) { fail("GET", "/disbursements/:id", new Error("Paste a disbursement id first.")); return; }
+        await call("GET", "/disbursements/" + id, { token: accessToken });
+      },
+      audit: () => requireAuth() && call("GET", "/audit-logs?limit=5", { token: accessToken }),
+    };
+
+    document.querySelectorAll("[data-demo]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const fn = actions[btn.dataset.demo];
+        if (fn) void fn();
+      });
+    });
+
+    // Initial reachability probe.
+    void (async () => {
+      try {
+        const res = await fetch(API_BASE + "/health", { method: "GET" });
+        if (res.ok) { setStatus(true, "API reachable at " + API_BASE); return; }
+      } catch { /* fallthrough */ }
+      setStatus(false, "API not reachable yet — deploy it (see Run & Deploy) or open with ?api=http://127.0.0.1:3000");
+    })();
   })();
 </script>
 

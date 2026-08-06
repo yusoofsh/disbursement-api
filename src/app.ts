@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import rateLimit from "@fastify/rate-limit";
+import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { sql } from "drizzle-orm";
@@ -88,6 +89,16 @@ export async function buildApp(env: Env): Promise<App> {
 
   await app.register(errorHandlerPlugin);
   await app.register(authPlugin, { env });
+  // CORS is opt-in: empty CORS_ORIGIN disables it (same-origin only).
+  // The interactive demo page (served from yusoofsh.id) needs the API origin
+  // listed here, e.g. CORS_ORIGIN=https://www.yusoofsh.id
+  if (env.CORS_ORIGIN) {
+    await app.register(cors, {
+      origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN.split(",").map((o) => o.trim()),
+      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      exposedHeaders: ["X-Request-ID", "X-Idempotent-Replayed"],
+    });
+  }
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: "1 minute",

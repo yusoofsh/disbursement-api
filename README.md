@@ -65,6 +65,38 @@ docker compose down        # keeps the pgdata volume
 docker compose down -v     # also deletes the database volume
 ```
 
+## Deploy the GHCR image (e.g. disbursement.yusoofsh.cloud)
+
+CI builds and pushes every `main` push to `ghcr.io/yusoofsh/disbursement-api` (`latest` + commit SHA).
+Any container runtime works; the image runs migrations automatically on start.
+
+```bash
+docker pull ghcr.io/yusoofsh/disbursement-api:latest
+docker run -d --name disbursement-api \
+  -p 3000:3000 \
+  -e DATABASE_URL=postgresql://postgres:postgres@db-host:5432/disbursement \
+  -e JWT_ACCESS_SECRET='<64+ random chars>' \
+  -e JWT_REFRESH_SECRET='<64+ random chars>' \
+  -e CORS_ORIGIN='https://www.yusoofsh.id' \
+  ghcr.io/yusoofsh/disbursement-api:latest
+
+# seed the three users once the DB is migrated
+docker exec -it disbursement-api node dist/db/seed.js
+```
+
+Required env: `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (32+ chars).
+Optional: `PORT`, `HOST`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`, `RATE_LIMIT_MAX`,
+`RATE_LIMIT_LOGIN_MAX`, `CORS_ORIGIN`, `LOG_LEVEL`.
+
+**CORS for the interactive demo page:** the explainer at
+`https://www.yusoofsh.id/static/disbursement-api/index.html` calls the API from the browser, so the
+API must list the page's origin in `CORS_ORIGIN` (comma-separated; empty disables CORS, `*` allows all).
+The demo console degrades gracefully — it shows "API not reachable" and accepts
+`?api=https://disbursement.yusoofsh.cloud` (the default) or `?api=http://127.0.0.1:3000` for local testing.
+
+Suggested TLS setup for the subdomain: Caddy or Dokploy reverse proxy → the container's port 3000;
+use strong generated JWT secrets (never the compose defaults) and restrict the DB to the same network.
+
 ## Local setup without Docker
 
 ```bash
