@@ -14,7 +14,7 @@ services:
       retries: 10
 
   api:
-    build: .
+    image: ghcr.io/yusoofsh/disbursement-api:latest
     ports:
       - "3000:3000"
     environment:
@@ -28,7 +28,10 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-jwt-refresh-secret-change-me-0987654321}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      # Browser origins allowed to call the API from the interactive demo page.
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy

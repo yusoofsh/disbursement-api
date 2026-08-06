@@ -802,8 +802,8 @@
 
     <!-- ================= RUN ================= -->
     <div class="sec-head" id="s-run"><span class="num">13</span>Run &amp; Deploy</div>
-    <pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
-docker compose up -d --build
+<pre><span class="c"># Docker (recommended) — migrations run automatically on start</span>
+docker compose up -d          <span class="c"># uses ghcr.io/yusoofsh/disbursement-api:latest</span>
 docker compose exec api node dist/db/seed.js
 
 <span class="c"># Local</span>

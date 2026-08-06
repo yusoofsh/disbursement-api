@@ -43,10 +43,17 @@ Rate-limit knobs (requests per minute, see [Rate limiting](#rate-limiting)):
 ## Docker Compose (recommended)
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
-This starts `postgres:16-alpine` (volume `pgdata`, `pg_isready` healthcheck) and the API on `http://localhost:3000`. The API container runs migrations automatically on start (`node dist/db/migrate.js && node dist/server.js`). JWT secrets come from your `.env` via Compose interpolation, with dev-only defaults that meet the 32-character minimum — replace them before anything real.
+This starts `postgres:16-alpine` (volume `pgdata`, `pg_isready` healthcheck) and the API on `http://localhost:3000`
+using the CI-built image `ghcr.io/yusoofsh/disbursement-api:latest` — no local build needed. The API container runs
+migrations automatically on start (`node dist/db/migrate.js && node dist/server.js`). JWT secrets come from your
+`.env` via Compose interpolation, with dev-only defaults that meet the 32-character minimum — replace them before
+anything real. The compose file is `compose.yml` (the modern default; `docker-compose.yml` was retired).
+
+To build from source instead of pulling the image: `docker build -t disbursement-api .` and swap the `image:` line
+for `build: .` — the `Dockerfile` is kept in the repo for that purpose.
 
 Seed the three users once the API is healthy:
 
