@@ -842,9 +842,9 @@ docker compose exec api node dist/db/seed.js
 
 <span class="c"># Local</span>
 cp .env.example .env
-nub install && nub run db:migrate && nub run db:seed
-nub run dev        <span class="c"># http://localhost:3000</span>
-nub run test       <span class="c"># 51 tests</span></pre>
+pnpm install && pnpm db:migrate && pnpm db:seed
+pnpm dev           <span class="c"># http://localhost:3000</span>
+pnpm test          <span class="c"># 70 tests</span></pre>
     <div class="grid cols-3">
       <div class="card"><span class="tag">try it</span><h3>Swagger UI</h3><p><code>GET /documentation</code> — full OpenAPI 3 docs with the Bearer scheme and per-route response schemas.</p></div>
       <div class="card"><span class="tag">try it</span><h3>Seed credentials</h3><p><code>superadmin/superadmin123</code> · <code>admin/admin123</code> · <code>operator/operator123</code></p></div>

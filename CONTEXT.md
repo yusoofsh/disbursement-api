@@ -91,7 +91,7 @@ Authentication: JWT
 Password hashing: Argon2id or bcrypt
 Logging: Pino through Fastify
 Tests: Vitest
-Package manager: nubjs
+Package manager: pnpm (nub supported for local use)
 Containers: Docker and Docker Compose
 ```
 

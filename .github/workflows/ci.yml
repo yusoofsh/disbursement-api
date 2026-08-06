@@ -33,27 +33,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm typecheck
 
       - name: Build
-        run: npm run build
+        run: pnpm build
 
       - name: Migrate
-        run: npm run db:migrate
+        run: pnpm db:migrate
 
       - name: Seed
-        run: npm run db:seed
+        run: pnpm db:seed
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
   docker:
     needs: test

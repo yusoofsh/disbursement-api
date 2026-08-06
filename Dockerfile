@@ -4,15 +4,15 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# The repo uses nub and ships nub.lock; there is no package-lock.json yet, so
-# plain npm install resolves from package.json. If a package-lock.json is added
-# later, switch this to `npm ci`.
-COPY package.json ./
-RUN npm install
+# Upstream builds use pnpm (repo ships pnpm-lock.yaml). Pin pnpm@10.
+RUN npm install -g pnpm@10
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json drizzle.config.ts ./
 COPY src ./src
-RUN npm run build
+RUN pnpm build
 
 # ---- Runtime stage -----------------------------------------------------------
 # bookworm-slim (glibc) so argon2 uses prebuilt binaries without a toolchain.
@@ -20,8 +20,9 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+RUN npm install -g pnpm@10
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=build /app/dist ./dist
 

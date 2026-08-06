@@ -10,7 +10,7 @@ A production-oriented disbursement service for LintasPay's Senior Backend Develo
 - Zod (unit-level validation) + Fastify JSON Schema (route-level validation)
 - JWT via `jsonwebtoken` + `@fastify/jwt`; Argon2id password hashing
 - Vitest for unit and integration tests
-- Package manager: nub (repo uses `nub.lock`); standard `package.json`, so npm/pnpm equivalents work
+- Package manager: pnpm (repo ships `pnpm-lock.yaml` for upstream/CI/Docker); `nub` is supported for local development via `nub.lock`
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Key design decisions (idempotency via PostgreSQL + advisory locks, optimistic co
 
 ## Prerequisites
 
-- Node.js 22+ and nub (or npm/pnpm), **or** Docker with Docker Compose
+- Node.js 22+ and pnpm (or `nub` locally), **or** Docker with Docker Compose
 - PostgreSQL 16 (local install or the provided Docker container)
 
 `argon2` ships prebuilt binaries for common platforms (macOS arm64, Linux x64 glibc); on other platforms you may need a C toolchain.
@@ -61,7 +61,7 @@ Seed the three users once the API is healthy:
 docker compose exec api node dist/db/seed.js
 ```
 
-(The image ships only production dependencies, so `tsx`/nub are not available inside the container; the compiled seed runs directly. Locally, `nub run db:seed` is the equivalent.)
+(The image ships only production dependencies, so `tsx` is not available inside the container; the compiled seed runs directly. Locally, `pnpm db:seed` is the equivalent.)
 
 Other useful commands:
 
@@ -115,32 +115,32 @@ createdb disbursement
 
 # 2. Install and configure
 cp .env.example .env       # point DATABASE_URL at your local Postgres
-nub install                # or: npm install / pnpm install
+pnpm install               # local alternative: nub install
 
 # 3. Create the schema and seed users
-nub run db:migrate
-nub run db:seed
+pnpm db:migrate
+pnpm db:seed
 
 # 4. Run
-nub run dev                # http://localhost:3000
+pnpm dev                   # http://localhost:3000
 ```
 
 ## Commands
 
 | Command | Description |
 |---|---|
-| `nub run dev` | Start with `tsx watch` |
-| `nub run build` | Compile TypeScript to `dist/` |
-| `nub run start` | Run the compiled app (`node dist/server.js`) |
-| `nub run typecheck` | `tsc --noEmit` |
-| `nub run test` | Run all Vitest suites |
-| `nub run test:unit` | Unit tests only |
-| `nub run test:integration` | Integration tests only |
-| `nub run db:generate` | Generate Drizzle migrations from `src/db/schema.ts` |
-| `nub run db:migrate` | Apply migrations (`tsx src/db/migrate.ts`) |
-| `nub run db:seed` | Seed users (`tsx src/db/seed.ts`) |
+| `pnpm dev` | Start with `tsx watch` |
+| `pnpm build` | Compile TypeScript to `dist/` |
+| `pnpm start` | Run the compiled app (`node dist/server.js`) |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Run all Vitest suites |
+| `pnpm test:unit` | Unit tests only |
+| `pnpm test:integration` | Integration tests only |
+| `pnpm db:generate` | Generate Drizzle migrations from `src/db/schema.ts` |
+| `pnpm db:migrate` | Apply migrations (`tsx src/db/migrate.ts`) |
+| `pnpm db:seed` | Seed users (`tsx src/db/seed.ts`) |
 
-`nub exec <bin>` runs any local binary (e.g. `nub exec tsc`). All scripts are plain `package.json` entries, so npm/pnpm equivalents (`npm run build`, `pnpm test`, …) work unchanged.
+`pnpm exec <bin>` runs any local binary (e.g. `pnpm exec tsc`). The scripts are plain `package.json` entries, so the `nub run <script>` equivalents work locally (`nub run build`, `nub test`, …) unchanged.
 
 ## Endpoints
 
@@ -340,7 +340,7 @@ Audit entries are written **after** the primary transaction commits. If the inse
 - Expired idempotency rows are not cleaned up by a background job; they are removed lazily when the same key is reused.
 - `amount` must be a JSON integer (bigint); non-integers are rejected by the route schema.
 - The production Docker image contains only runtime dependencies, so in-container one-off commands use the compiled `dist/` entry points (`node dist/db/migrate.js`, `node dist/db/seed.js`) rather than `tsx`.
-- The repo ships `nub.lock` and no `package-lock.json`, so the Dockerfile uses `npm install` (switch to `npm ci` if a `package-lock.json` is added).
+- The repo ships `pnpm-lock.yaml` (used by upstream, CI, and the Docker image via `pnpm install --frozen-lockfile`) and `nub.lock` (used for local development with `nub`).
 
 ## AI/tooling disclosure
 
