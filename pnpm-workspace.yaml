@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - tsx@4.23.9
