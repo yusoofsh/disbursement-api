@@ -6,43 +6,43 @@
 <title>disbursement-api — Technical Explainer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
-    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'Fira Code', 'SF Mono', Consolas, monospace;
 
-    --bg: #f7f4ee;
-    --surface: #fffdf8;
-    --surface2: #f0ebe0;
-    --border: rgba(60, 50, 30, 0.12);
-    --text: #2b2620;
-    --text-dim: #7a7160;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --surface2: #eef1f8;
+    --border: rgba(26, 43, 72, 0.12);
+    --text: #16233a;
+    --text-dim: #5b6b80;
 
-    --primary: #b3542e;       /* terracotta */
-    --primary-dim: rgba(179, 84, 46, 0.09);
-    --secondary: #4d7c6f;     /* sage */
-    --secondary-dim: rgba(77, 124, 111, 0.10);
-    --tertiary: #b08d2e;      /* amber */
-    --danger: #a63a3a;
-    --ink: #3a4a5a;           /* deep slate-blue */
+    --primary: #1d4d9b;       /* deep navy */
+    --primary-dim: rgba(29, 77, 155, 0.09);
+    --secondary: #33708a;     /* slate teal */
+    --secondary-dim: rgba(51, 112, 138, 0.10);
+    --tertiary: #b18a2c;      /* gold */
+    --danger: #b23b3b;
+    --ink: #33475e;           /* slate blue */
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1c1915;
-      --surface: #26221c;
-      --surface2: #2e2921;
-      --border: rgba(255, 240, 220, 0.10);
-      --text: #ece4d6;
-      --text-dim: #a29885;
+      --bg: #0e1626;
+      --surface: #151f31;
+      --surface2: #1b2740;
+      --border: rgba(170, 190, 220, 0.12);
+      --text: #e7edf6;
+      --text-dim: #93a3bc;
 
-      --primary: #e08a5f;
-      --primary-dim: rgba(224, 138, 95, 0.14);
-      --secondary: #8fb8a9;
-      --secondary-dim: rgba(143, 184, 169, 0.14);
-      --tertiary: #d9b655;
-      --danger: #e07a7a;
+      --primary: #6a97e0;
+      --primary-dim: rgba(106, 151, 224, 0.14);
+      --secondary: #67b3b8;
+      --secondary-dim: rgba(103, 179, 184, 0.14);
+      --tertiary: #e0c35a;
+      --danger: #e57a7a;
       --ink: #9db8cc;
     }
   }
@@ -335,7 +335,7 @@
   .demo-entry .status { font-weight: 600; padding: 1px 7px; border-radius: 4px; }
   .demo-entry .status.s2 { background: var(--secondary-dim); color: var(--secondary); }
   .demo-entry .status.s4 { background: var(--primary-dim); color: var(--primary); }
-  .demo-entry .status.s5 { background: rgba(166, 58, 58, 0.12); color: var(--danger); }
+  .demo-entry .status.s5 { background: rgba(178, 59, 59, 0.12); color: var(--danger); }
   .demo-entry pre {
     display: none; /* collapsed: rows stay one line, newest opens, click toggles */
     margin: 0; border: none; border-radius: 0; padding: 8px 10px; font-size: 10.5px;
@@ -910,29 +910,37 @@ pnpm test          <span class="c"># 70 tests</span></pre>
     theme: 'base',
     look: 'classic',
     themeVariables: {
-      fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+      fontFamily: "'DM Sans', system-ui, sans-serif",
       fontSize: '15px',
-      primaryColor: isDark ? '#3a2e24' : '#f6e8de',
-      primaryBorderColor: isDark ? '#e08a5f' : '#b3542e',
-      primaryTextColor: isDark ? '#ece4d6' : '#2b2620',
-      secondaryColor: isDark ? '#26332d' : '#e3ede8',
-      secondaryBorderColor: isDark ? '#8fb8a9' : '#4d7c6f',
-      secondaryTextColor: isDark ? '#ece4d6' : '#2b2620',
-      tertiaryColor: isDark ? '#332e20' : '#f7f0dc',
-      tertiaryBorderColor: isDark ? '#d9b655' : '#b08d2e',
-      tertiaryTextColor: isDark ? '#ece4d6' : '#2b2620',
-      lineColor: isDark ? '#a29885' : '#7a7160',
-      noteBkgColor: isDark ? '#2e2921' : '#f7f0dc',
-      noteTextColor: isDark ? '#ece4d6' : '#2b2620',
-      noteBorderColor: isDark ? '#d9b655' : '#b08d2e',
-      actorBkg: isDark ? '#3a2e24' : '#f6e8de',
-      actorBorder: isDark ? '#e08a5f' : '#b3542e',
-      actorTextColor: isDark ? '#ece4d6' : '#2b2620',
-      signalColor: isDark ? '#a29885' : '#7a7160',
-      signalTextColor: isDark ? '#ece4d6' : '#2b2620',
-      labelTextColor: isDark ? '#ece4d6' : '#2b2620',
-      clusterBkg: isDark ? '#26221c' : '#fffdf8',
-      clusterBorder: isDark ? '#a29885' : '#7a7160',
+      primaryColor: isDark ? '#1b2740' : '#f2f5fb',
+      primaryBorderColor: isDark ? '#6a97e0' : '#1d4d9b',
+      primaryTextColor: isDark ? '#e7edf6' : '#16233a',
+      secondaryColor: isDark ? '#16273c' : '#eef3f8',
+      secondaryBorderColor: isDark ? '#67b3b8' : '#33708a',
+      secondaryTextColor: isDark ? '#e7edf6' : '#16233a',
+      tertiaryColor: isDark ? '#2c2a1c' : '#faf5e6',
+      tertiaryBorderColor: isDark ? '#e0c35a' : '#b18a2c',
+      tertiaryTextColor: isDark ? '#e7edf6' : '#16233a',
+      // ER diagrams (e.g. the Data Model) render entity boxes from these
+      // variables, which the primary* ones above do not cover. Without them
+      // mermaid falls back to its light base defaults (white fill + low-contrast
+      // text), which is unreadable next to the site's theme.
+      mainBkg: isDark ? '#1b2740' : '#f2f5fb',
+      nodeBorder: isDark ? '#6a97e0' : '#1d4d9b',
+      nodeTextColor: isDark ? '#e7edf6' : '#16233a',
+      textColor: isDark ? '#e7edf6' : '#16233a',
+      lineColor: isDark ? '#7d8fae' : '#5b6b80',
+      noteBkgColor: isDark ? '#2c2a1c' : '#faf5e6',
+      noteTextColor: isDark ? '#e7edf6' : '#16233a',
+      noteBorderColor: isDark ? '#e0c35a' : '#b18a2c',
+      actorBkg: isDark ? '#1b2740' : '#f2f5fb',
+      actorBorder: isDark ? '#6a97e0' : '#1d4d9b',
+      actorTextColor: isDark ? '#e7edf6' : '#16233a',
+      signalColor: isDark ? '#7d8fae' : '#5b6b80',
+      signalTextColor: isDark ? '#e7edf6' : '#16233a',
+      labelTextColor: isDark ? '#e7edf6' : '#16233a',
+      clusterBkg: isDark ? '#151f31' : '#ffffff',
+      clusterBorder: isDark ? '#7d8fae' : '#5b6b80',
     }
   });
 
@@ -1005,7 +1013,7 @@ pnpm test          <span class="c"># 70 tests</span></pre>
       if (!svg) return;
       const clone = svg.cloneNode(true);
       clone.style.width = ''; clone.style.height = '';
-      const bg = isDark ? '#1c1915' : '#f7f4ee';
+      const bg = isDark ? '#0e1626' : '#f5f7fb';
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${bg};padding:40px;box-sizing:border-box}svg{max-width:100%;max-height:90vh;height:auto}</style></head><body>${clone.outerHTML}</body></html>`;
       open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
     }
