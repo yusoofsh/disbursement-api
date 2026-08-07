@@ -13,11 +13,18 @@ const singleDisbursementResponse = {
   },
 } as const;
 
+/**
+ * Hard technical ceiling: `amount` is stored as BIGINT and read as a JS
+ * `number` (drizzle bigint number mode), which cannot represent values beyond
+ * 2^53 - 1 exactly. Reject anything above it instead of risking corruption.
+ */
+export const MAX_AMOUNT = Number.MAX_SAFE_INTEGER;
+
 export const createDisbursementBodySchema = z.object({
   recipient_name: z.string().min(1).max(255),
   account_number: z.string().min(1).max(64),
   bank_code: z.string().min(1).max(16),
-  amount: z.number().int().positive().min(10000),
+  amount: z.number().int().positive().min(10000).max(MAX_AMOUNT),
   note: z.string().max(2000).optional(),
 });
 
@@ -26,7 +33,7 @@ const disbursementItemProperties = {
   recipient_name: { type: "string", minLength: 1, maxLength: 255 },
   account_number: { type: "string", minLength: 1, maxLength: 64 },
   bank_code: { type: "string", minLength: 1, maxLength: 16 },
-  amount: { type: "integer", minimum: 10000 },
+  amount: { type: "integer", minimum: 10000, maximum: MAX_AMOUNT },
   note: { type: "string", maxLength: 2000 },
 } as const;
 
@@ -112,7 +119,7 @@ export const updateStatusJsonSchema = {
   tags: ["disbursements"],
   summary: "Update disbursement status",
   description:
-    "Transitions a PENDING disbursement to APPROVED or REJECTED. Concurrency-safe: only one concurrent transition wins; losers receive 409.",
+    "Transitions a PENDING disbursement to APPROVED or REJECTED. Concurrency-safe: only one concurrent transition wins; losers receive 409. Supports an optional Idempotency-Key header (UUID v4); a reused key replays the stored response for 24 hours.",
   security: [{ bearerAuth: [] }],
   response: {
     200: { description: "Updated disbursement", ...singleDisbursementResponse },
@@ -122,6 +129,16 @@ export const updateStatusJsonSchema = {
     404: errorResponses[404],
     409: errorResponses[409],
     429: errorResponses[429],
+  },
+  headers: {
+    type: "object",
+    properties: {
+      "idempotency-key": {
+        type: "string",
+        description:
+          "Optional UUID v4 (validated in the route handler, which returns 400 INVALID_IDEMPOTENCY_KEY otherwise). Reusing the same key with the same payload within 24 hours replays the stored response without re-applying the transition.",
+      },
+    },
   },
   body: {
     type: "object",

@@ -1,4 +1,4 @@
-import { and, count, desc, asc, eq, gte, ilike, isNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, asc, eq, gte, ilike, isNull, lte, type SQL } from "drizzle-orm";
 import type { Db } from "../../db/client.js";
 import { disbursements, type Disbursement, type DisbursementStatus } from "../../db/schema.js";
 import type { ListQuery } from "./disbursement.schema.js";
@@ -116,9 +116,5 @@ export class DisbursementRepository {
   async findRawById(id: string): Promise<Disbursement | undefined> {
     const rows = await this.db.select().from(disbursements).where(eq(disbursements.id, id)).limit(1);
     return rows[0];
-  }
-
-  async advisoryLock(key: string): Promise<void> {
-    await this.db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`);
   }
 }

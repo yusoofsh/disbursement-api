@@ -1,7 +1,7 @@
-import type { FastifyInstance } from "fastify";
-import { z } from "zod";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { success } from "../../shared/http/response.js";
 import { errors } from "../../shared/errors/app-error.js";
+import { isUuidV4 } from "../../shared/utils/uuid.js";
 import type { AccessTokenPayload } from "../../plugins/auth.js";
 import {
   createBatchJsonSchema,
@@ -16,11 +16,20 @@ import {
 } from "./disbursement.schema.js";
 import type { Actor, DisbursementService } from "./disbursement.service.js";
 
-const idempotencyKeySchema = z.string().uuid();
-
 /** Map the JWT payload (sub claim) onto the service Actor contract. */
 function toActor(user: AccessTokenPayload): Actor {
   return { id: user.sub, username: user.username, role: user.role };
+}
+
+/** Parse the optional Idempotency-Key header (strict UUID v4). */
+function parseIdempotencyKey(request: FastifyRequest): string | undefined {
+  const rawKey = request.headers["idempotency-key"];
+  if (rawKey === undefined) return undefined;
+  const value = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+  if (typeof value !== "string" || !isUuidV4(value)) {
+    throw errors.badRequest("INVALID_IDEMPOTENCY_KEY", "Idempotency-Key must be a valid UUID v4.");
+  }
+  return value;
 }
 
 export function disbursementRoutes(
@@ -55,15 +64,7 @@ export function disbursementRoutes(
       "/disbursements",
       { schema: createDisbursementJsonSchema, config: { rateLimit: { max: opts.rateLimitCreateMax } } },
       async (request, reply) => {
-        const rawKey = request.headers["idempotency-key"];
-        let idempotencyKey: string | undefined;
-        if (rawKey !== undefined) {
-          const parsed = idempotencyKeySchema.safeParse(rawKey);
-          if (!parsed.success) {
-            throw errors.badRequest("INVALID_IDEMPOTENCY_KEY", "Idempotency-Key must be a valid UUID v4.");
-          }
-          idempotencyKey = parsed.data;
-        }
+        const idempotencyKey = parseIdempotencyKey(request);
         const result = await service.create(
           toActor(request.user),
           request.body as CreateDisbursementInput,
@@ -91,14 +92,17 @@ export function disbursementRoutes(
       { schema: updateStatusJsonSchema, preHandler: app.requireRole("admin", "superadmin") },
       async (request, reply) => {
         const { id } = request.params as { id: string };
+        const idempotencyKey = parseIdempotencyKey(request);
         const updated = await service.updateStatus(
           toActor(request.user),
           id,
           request.body as UpdateStatusInput,
+          idempotencyKey,
           request.id,
           request.log,
         );
-        return reply.send(success(updated));
+        reply.header("X-Idempotent-Replayed", updated.replayed ? "true" : "false");
+        return reply.send(success(updated.disbursement));
       },
     );
 

@@ -336,6 +336,7 @@ Rules:
 - The operation must be concurrency-safe.
 - When two concurrent requests target the same record, exactly one succeeds.
 - The loser receives a clear conflict response.
+- Supports optional `Idempotency-Key` with the same semantics as creation (see section 9): a reused key within 24 hours replays the stored response with `X-Idempotent-Replayed: true` and applies no transition and no audit event.
 
 Recommended implementation:
 
@@ -409,6 +410,13 @@ X-Idempotent-Replayed: true
 
 - A newly processed request should omit the header or set it to `false`.
 - The second request must not create another disbursement or audit side effect.
+
+The same contract (optionally) protects `PATCH /disbursements/:id/status`:
+
+- The normalized payload is `{ id, status, note }`.
+- The stored response is the `200` body of the winning transition.
+- A retried approval with the same key and payload replays that response instead of re-running the transition; no second `status_changed` audit event is written.
+- Key reuse with a different payload (different status, note, or resource) returns `409 IDEMPOTENCY_KEY_REUSED`.
 
 ### Recommended table
 

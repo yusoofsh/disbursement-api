@@ -23,6 +23,11 @@ export interface CreateResult {
   replayed: boolean;
 }
 
+export interface StatusUpdateResult {
+  disbursement: DisbursementApi;
+  replayed: boolean;
+}
+
 export type DisbursementApi = ReturnType<typeof toApiDisbursement>;
 
 /**
@@ -58,6 +63,16 @@ export function hashRequestPayload(input: CreateDisbursementInput): string {
     account_number: input.account_number,
     bank_code: input.bank_code,
     amount: input.amount,
+    note: input.note ?? null,
+  };
+  return sha256(JSON.stringify(normalized));
+}
+
+/** Deterministic normalization of a status-transition request (id + payload). */
+export function hashStatusPayload(id: string, input: UpdateStatusInput): string {
+  const normalized = {
+    id,
+    status: input.status,
     note: input.note ?? null,
   };
   return sha256(JSON.stringify(normalized));
@@ -114,7 +129,7 @@ export class DisbursementService {
 
     if (!idempotencyKey) {
       const disbursement = await this.createRow(actor, input);
-      await this.auditCreated(disbursement, actor, requestId, log);
+      await this.auditCreated(toApiDisbursement(disbursement), actor, requestId, log);
       return { disbursement: toApiDisbursement(disbursement), statusCode: 201, replayed: false };
     }
 
@@ -234,7 +249,7 @@ export class DisbursementService {
 
     const apiItems = created.map(toApiDisbursement);
     for (const disbursement of created) {
-      await this.auditCreated(disbursement, actor, requestId, log);
+      await this.auditCreated(toApiDisbursement(disbursement), actor, requestId, log);
     }
     return { created: created.length, items: apiItems };
   }
@@ -280,7 +295,7 @@ export class DisbursementService {
     });
   }
 
-  private async auditCreated(d: { id: string }, actor: Actor, requestId: string, log: FastifyBaseLogger) {
+  private async auditCreated(d: DisbursementApi, actor: Actor, requestId: string, log: FastifyBaseLogger) {
     await this.audit.record(
       {
         entityId: d.id,
@@ -299,11 +314,100 @@ export class DisbursementService {
     actor: Actor,
     id: string,
     input: UpdateStatusInput,
+    idempotencyKey: string | undefined,
     requestId: string,
     log: FastifyBaseLogger,
-  ): Promise<DisbursementApi> {
+  ): Promise<StatusUpdateResult> {
     if (!canChangeStatus(actor.role)) throw errors.forbidden();
 
+    if (!idempotencyKey) {
+      return this.transition(actor, id, input, requestId, log);
+    }
+
+    const requestHash = hashStatusPayload(id, input);
+
+    // Fast path: replay an already-completed key without taking a lock.
+    const existing = await this.findIdempotencyKey(actor.id, idempotencyKey);
+    if (existing) {
+      return this.replayStatusOrConflict(existing.requestHash === requestHash, existing);
+    }
+
+    // Slow path: transaction-scoped advisory lock serializes concurrent
+    // first-use, mirroring the create flow. The CAS transition and the
+    // idempotency row commit atomically, so a replayed key can never replay a
+    // transition that did not actually win.
+    return this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${actor.id}), hashtext(${idempotencyKey}))`,
+      );
+
+      const insideRows = await tx
+        .select()
+        .from(idempotencyKeys)
+        .where(
+          and(
+            eq(idempotencyKeys.userId, actor.id),
+            eq(idempotencyKeys.idempotencyKey, idempotencyKey),
+            gt(idempotencyKeys.expiresAt, new Date()),
+          ),
+        )
+        .limit(1);
+      const inside = insideRows[0];
+      if (inside) {
+        return this.replayStatusOrConflict(inside.requestHash === requestHash, inside);
+      }
+
+      // An expired row still occupies the (user_id, idempotency_key) unique
+      // slot, so replace it here, inside the advisory lock.
+      await tx
+        .delete(idempotencyKeys)
+        .where(
+          and(
+            eq(idempotencyKeys.userId, actor.id),
+            eq(idempotencyKeys.idempotencyKey, idempotencyKey),
+            lte(idempotencyKeys.expiresAt, new Date()),
+          ),
+        );
+
+      const repo = new DisbursementRepository(tx as unknown as Db);
+      const before = await repo.findRawById(id);
+      const updated = await repo.transitionStatus(id, input.status, actor.id, input.note);
+      if (!updated) {
+        if (!before || before.deletedAt) throw errors.notFound("Disbursement not found.");
+        throw errors.conflict(
+          "DISBURSEMENT_NOT_PENDING",
+          "Only pending disbursements can be updated.",
+        );
+      }
+
+      const responseBody = { success: true, data: toApiDisbursement(updated) };
+      await tx.insert(idempotencyKeys).values({
+        userId: actor.id,
+        idempotencyKey,
+        requestHash,
+        responseStatus: 200,
+        responseBody,
+        resourceId: updated.id,
+        expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_MS),
+      });
+
+      return { updated, before };
+    }).then(async (result) => {
+      if ("replayed" in result) return result;
+      // Audit write happens after the primary transaction commits (non-blocking).
+      await this.auditStatusChanged(result.before, result.updated, actor, requestId, log);
+      return { disbursement: toApiDisbursement(result.updated), replayed: false };
+    });
+  }
+
+  /** Non-idempotent status transition: read, CAS, disambiguate, audit. */
+  private async transition(
+    actor: Actor,
+    id: string,
+    input: UpdateStatusInput,
+    requestId: string,
+    log: FastifyBaseLogger,
+  ): Promise<StatusUpdateResult> {
     const before = await this.repo.findRawById(id);
     const updated = await this.repo.transitionStatus(id, input.status, actor.id, input.note);
 
@@ -315,9 +419,20 @@ export class DisbursementService {
       );
     }
 
+    await this.auditStatusChanged(before, updated, actor, requestId, log);
+    return { disbursement: toApiDisbursement(updated), replayed: false };
+  }
+
+  private async auditStatusChanged(
+    before: Disbursement | undefined,
+    updated: Disbursement,
+    actor: Actor,
+    requestId: string,
+    log: FastifyBaseLogger,
+  ) {
     await this.audit.record(
       {
-        entityId: id,
+        entityId: updated.id,
         action: "status_changed",
         actorId: actor.id,
         actorUsername: actor.username,
@@ -327,7 +442,20 @@ export class DisbursementService {
       },
       log,
     );
-    return toApiDisbursement(updated);
+  }
+
+  private replayStatusOrConflict(
+    hashMatches: boolean,
+    existing: { responseStatus: number; responseBody: unknown },
+  ): StatusUpdateResult {
+    if (!hashMatches) {
+      throw errors.conflict(
+        "IDEMPOTENCY_KEY_REUSED",
+        "The idempotency key was already used with a different request payload.",
+      );
+    }
+    const body = existing.responseBody as { data: DisbursementApi };
+    return { disbursement: body.data, replayed: true };
   }
 
   async softDelete(

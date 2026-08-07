@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { calculateAdminFee } from "../../src/modules/disbursements/disbursement.policy.js";
-import { createDisbursementBodySchema } from "../../src/modules/disbursements/disbursement.schema.js";
+import {
+  createDisbursementBodySchema,
+  MAX_AMOUNT,
+} from "../../src/modules/disbursements/disbursement.schema.js";
 
 const validBody = {
   recipient_name: "Budi Santoso",
@@ -30,6 +33,16 @@ describe("createDisbursementBodySchema", () => {
 
   it("rejects non-integer amounts", () => {
     const result = createDisbursementBodySchema.safeParse({ ...validBody, amount: 12_500.5 });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts the maximum safe integer amount", () => {
+    const result = createDisbursementBodySchema.safeParse({ ...validBody, amount: MAX_AMOUNT });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects amounts beyond the lossless BIGINT->number range", () => {
+    const result = createDisbursementBodySchema.safeParse({ ...validBody, amount: MAX_AMOUNT + 1 });
     expect(result.success).toBe(false);
   });
 });

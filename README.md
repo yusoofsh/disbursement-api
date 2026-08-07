@@ -40,11 +40,13 @@ Node 22 · TypeScript (strict) · Fastify 5 · PostgreSQL 16 · Drizzle ORM · Z
 | `GET` | `/disbursements/export` | operator+ | Excel-compatible CSV (same filters) |
 | `POST` | `/disbursements` | operator+ | optional `Idempotency-Key`; `201` |
 | `POST` | `/disbursements/batch` | operator+ | 1–100 creates, all-or-nothing |
-| `PATCH` | `/disbursements/:id/status` | admin+ | `PENDING` → approved/rejected; one winner under concurrency |
+| `PATCH` | `/disbursements/:id/status` | admin+ | `PENDING` → approved/rejected; one winner under concurrency; optional `Idempotency-Key` |
 | `DELETE` | `/disbursements/:id` | superadmin | soft delete, `PENDING` only, `200` + success JSON |
 | `GET` | `/audit-logs` | superadmin | newest first, filterable |
 
 Every response carries `X-Request-ID` and uses `{ success, data, meta? }` / `{ success: false, error: { code, message } }`.
+
+Two routes are deliberately public: `GET /health` (so load balancers and orchestrators can probe the database without credentials) and `GET /documentation` (Swagger UI cannot attach bearer tokens while browsing). Every other route — including `/disbursements` and `/audit-logs` — requires a valid access token.
 
 ## Seed credentials
 
@@ -66,12 +68,15 @@ Every response carries `X-Request-ID` and uses `{ success, data, meta? }` / `{ s
 
 ## Highlights
 
-- **Idempotency** — optional `Idempotency-Key` (UUID), user-scoped, persisted 24h in PostgreSQL, advisory-lock serialized; replay returns the stored response byte-for-byte with `X-Idempotent-Replayed: true`; key reuse with a different payload → `409`.
+- **Idempotency** — optional `Idempotency-Key` (UUID v4) on `POST /disbursements` and `PATCH /disbursements/:id/status`, user-scoped, persisted 24h in PostgreSQL, advisory-lock serialized; replay returns the stored response byte-for-byte with `X-Idempotent-Replayed: true`; key reuse with a different payload → `409`. A retried approval replays the winning response instead of hitting the concurrency loser path.
 - **Concurrency** — status changes use `UPDATE … WHERE status = 'PENDING'` (atomic compare-and-set); losers get `404` or `409`.
+- **Refresh tokens** — stored as SHA-256 hashes in Postgres with rotation and revocation, so logout and rotation hold across instances and restarts; trade-offs documented in `ARCHITECTURE.md`.
 - **Rate limiting** — 30/min per user on create/batch; 10/min per IP on login; configurable via env.
 - **CSV export** — `GET /disbursements/export` → UTF-8 BOM, RFC 4180 quoting, CRLF, ISO timestamps, attachment header; opens in Excel/Sheets.
 - **Soft delete** — rows stay recoverable/auditable; `GET` → `404`, list excludes them.
 - **Non-blocking audit** — written post-commit; a failure never blocks the business op (logged).
+
+Validation notes: `amount` is a positive integer with a minimum of `10000` and a technical maximum of `Number.MAX_SAFE_INTEGER` (2⁵³ − 1), the largest value BIGINT can read back losslessly as a JavaScript number.
 
 ## Deploy
 
