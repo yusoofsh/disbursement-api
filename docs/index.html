@@ -1792,6 +1792,19 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         const r = await call("GET", "/disbursements/export", { token: accessToken });
         markDone(4);
         resultFromCall(r, "GET", "/disbursements/export");
+        // Trigger a real browser download of the returned CSV, mirroring the
+        // API's Content-Disposition filename (disbursements-<stamp>.csv).
+        if (r && r.status < 400 && r.text) {
+          const blob = new Blob([r.text], { type: "text/csv;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "disbursements-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".csv";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
       },
       get: async () => {
         if (!requireAuth()) return;
