@@ -32,4 +32,4 @@ COPY src/db/migrations ./dist/db/migrations
 
 USER node
 EXPOSE 3000
-CMD ["sh", "-c", "node dist/db/migrate.js && node dist/server.js"]
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/db/seed.js && node dist/server.js"]
