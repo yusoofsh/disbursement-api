@@ -326,6 +326,27 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     overflow: hidden;
   }
+  /* two-pane console: inputs/controls on the left, scrollable response log on the right */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .demo-toolbar { grid-column: 1 / -1; }
+  .demo-left { min-width: 0; }
+  .demo-right {
+    min-width: 0;
+    padding: 12px;
+    max-height: min(720px, 70dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .demo-right::-webkit-scrollbar { width: 6px; }
+  .demo-right::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .demo-right::-webkit-scrollbar-track { background: transparent; }
   .demo-toolbar {
     display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
     padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface2);
@@ -420,7 +441,7 @@
   .scenario-step button.run.ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
   .scenario-step .run-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
   .demo-result {
-    margin: 0 12px 12px; border: 1px solid var(--border); border-radius: 12px; padding: 12px;
+    margin: 0 0 12px; border: 1px solid var(--border); border-radius: 12px; padding: 12px;
     background: var(--surface2); display: grid; gap: 8px;
   }
   .demo-result[hidden] { display: none; }
@@ -439,7 +460,7 @@
     white-space: pre-wrap; overflow-wrap: break-word; color: var(--text);
   }
   .demo-out {
-    border-top: 1px solid var(--border); padding: 12px;
+    padding: 0;
     display: flex; flex-direction: column; gap: 8px;
     font-family: var(--font-mono); font-size: 11.5px;
   }
@@ -503,6 +524,8 @@
     .main { padding-top: 20px; }
     .sec-head { scroll-margin-top: 56px; }
     h1 { font-size: 26px; }
+    .demo-grid { grid-template-columns: 1fr; }
+    .demo-right { max-height: none; overflow: visible; border-left: none; }
   }
 </style>
 </head>
@@ -956,73 +979,79 @@ pnpm test          <span class="c"># 70 tests</span></pre>
         <span class="mode-pill" id="demo-mode">probing</span>
       </div>
       <div class="demo-console">
-        <div class="demo-toolbar">
-          <button type="button" data-demo="health">Health</button>
-          <button type="button" data-demo="logout">Logout</button>
-          <button type="button" data-demo="flip">use simulator</button>
-          <span class="api-badge" id="demo-api-badge"></span>
+        <div class="demo-grid">
+          <div class="demo-toolbar">
+            <button type="button" data-demo="health">Health</button>
+            <button type="button" data-demo="logout">Logout</button>
+            <button type="button" data-demo="flip">use simulator</button>
+            <span class="api-badge" id="demo-api-badge"></span>
+          </div>
+          <div class="demo-left">
+            <div class="demo-steps" id="demo-steps">
+              <button type="button" class="step" data-step="1"><span class="step-num">1</span>Authenticate</button>
+              <span class="step-arrow">→</span>
+              <button type="button" class="step" data-step="2"><span class="step-num">2</span>Create</button>
+              <span class="step-arrow">→</span>
+              <button type="button" class="step" data-step="3"><span class="step-num">3</span>Race</button>
+              <span class="step-arrow">→</span>
+              <button type="button" class="step" data-step="4"><span class="step-num">4</span>Inspect</button>
+              <span class="demo-progress-label" id="demo-progress-label">Step 1 of 4</span>
+            </div>
+            <div class="demo-progress" id="demo-progress"><div class="demo-progress-fill" id="demo-progress-fill"></div></div>
+            <div class="scenario">
+              <section class="scenario-step" data-step="1">
+                <div class="step-head"><span class="step-badge">Step 1 ·</span><h4>Authenticate</h4></div>
+                <div class="row2">
+                  <input id="d-user" placeholder="username" value="admin" spellcheck="false">
+                  <input id="d-pass" type="password" placeholder="password" value="admin123">
+                </div>
+                <button class="run" type="button" data-demo="login">Login → tokens</button>
+              </section>
+              <section class="scenario-step" data-step="2">
+                <div class="step-head"><span class="step-badge">Step 2 ·</span><h4>Create a disbursement</h4></div>
+                <input id="d-name" placeholder="recipient_name" value="Budi Santoso">
+                <div class="row2">
+                  <input id="d-acct" placeholder="account_number" value="1234567890">
+                  <input id="d-bank" placeholder="bank_code" value="BCA">
+                </div>
+                <div class="row2">
+                  <input id="d-amount" type="number" placeholder="amount" value="1250000">
+                  <input id="d-note" placeholder="note (optional)" value="Pembayaran supplier">
+                </div>
+                <div class="run-row">
+                  <button class="run" type="button" data-demo="create">Create with new key</button>
+                  <button class="run ghost" type="button" data-demo="replay">Replay previous request</button>
+                </div>
+              </section>
+              <section class="scenario-step" data-step="3">
+                <div class="step-head"><span class="step-badge">Step 3 ·</span><h4>Race - one winner</h4></div>
+                <input id="d-id" placeholder="disbursement id (auto-filled from create)">
+                <div class="row2">
+                  <select id="d-status"><option value="APPROVED">APPROVED</option><option value="REJECTED">REJECTED</option></select>
+                  <button class="run" type="button" data-demo="race">Fire 2 parallel PATCHes</button>
+                </div>
+                <button class="run ghost" type="button" data-demo="delete">DELETE (soft, superadmin)</button>
+              </section>
+              <section class="scenario-step" data-step="4">
+                <div class="step-head"><span class="step-badge">Step 4 ·</span><h4>Inspect</h4></div>
+                <div class="run-row">
+                  <button class="run" type="button" data-demo="list">GET /disbursements</button>
+                  <button class="run" type="button" data-demo="get">GET /:id</button>
+                  <button class="run" type="button" data-demo="export">Export CSV</button>
+                  <button class="run" type="button" data-demo="audit">Audit logs</button>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="demo-right">
+            <div class="demo-result" id="demo-result" hidden>
+              <div class="result-title">Result</div>
+              <div class="result-line"><span class="result-status" id="result-status"></span><span class="result-headers" id="result-headers"></span></div>
+              <pre class="result-body" id="result-body"></pre>
+            </div>
+            <div class="demo-out" id="demo-out"><div class="demo-empty" id="demo-empty">responses appear here - log in, then create a disbursement.</div></div>
+          </div>
         </div>
-        <div class="demo-steps" id="demo-steps">
-          <button type="button" class="step" data-step="1"><span class="step-num">1</span>Authenticate</button>
-          <span class="step-arrow">→</span>
-          <button type="button" class="step" data-step="2"><span class="step-num">2</span>Create</button>
-          <span class="step-arrow">→</span>
-          <button type="button" class="step" data-step="3"><span class="step-num">3</span>Race</button>
-          <span class="step-arrow">→</span>
-          <button type="button" class="step" data-step="4"><span class="step-num">4</span>Inspect</button>
-          <span class="demo-progress-label" id="demo-progress-label">Step 1 of 4</span>
-        </div>
-        <div class="demo-progress" id="demo-progress"><div class="demo-progress-fill" id="demo-progress-fill"></div></div>
-        <div class="scenario">
-          <section class="scenario-step" data-step="1">
-            <div class="step-head"><span class="step-badge">Step 1 ·</span><h4>Authenticate</h4></div>
-            <div class="row2">
-              <input id="d-user" placeholder="username" value="admin" spellcheck="false">
-              <input id="d-pass" type="password" placeholder="password" value="admin123">
-            </div>
-            <button class="run" type="button" data-demo="login">Login → tokens</button>
-          </section>
-          <section class="scenario-step" data-step="2">
-            <div class="step-head"><span class="step-badge">Step 2 ·</span><h4>Create a disbursement</h4></div>
-            <input id="d-name" placeholder="recipient_name" value="Budi Santoso">
-            <div class="row2">
-              <input id="d-acct" placeholder="account_number" value="1234567890">
-              <input id="d-bank" placeholder="bank_code" value="BCA">
-            </div>
-            <div class="row2">
-              <input id="d-amount" type="number" placeholder="amount" value="1250000">
-              <input id="d-note" placeholder="note (optional)" value="Pembayaran supplier">
-            </div>
-            <div class="run-row">
-              <button class="run" type="button" data-demo="create">Create with new key</button>
-              <button class="run ghost" type="button" data-demo="replay">Replay previous request</button>
-            </div>
-          </section>
-          <section class="scenario-step" data-step="3">
-            <div class="step-head"><span class="step-badge">Step 3 ·</span><h4>Race - one winner</h4></div>
-            <input id="d-id" placeholder="disbursement id (auto-filled from create)">
-            <div class="row2">
-              <select id="d-status"><option value="APPROVED">APPROVED</option><option value="REJECTED">REJECTED</option></select>
-              <button class="run" type="button" data-demo="race">Fire 2 parallel PATCHes</button>
-            </div>
-            <button class="run ghost" type="button" data-demo="delete">DELETE (soft, superadmin)</button>
-          </section>
-          <section class="scenario-step" data-step="4">
-            <div class="step-head"><span class="step-badge">Step 4 ·</span><h4>Inspect</h4></div>
-            <div class="run-row">
-              <button class="run" type="button" data-demo="list">GET /disbursements</button>
-              <button class="run" type="button" data-demo="get">GET /:id</button>
-              <button class="run" type="button" data-demo="export">Export CSV</button>
-              <button class="run" type="button" data-demo="audit">Audit logs</button>
-            </div>
-          </section>
-        </div>
-        <div class="demo-result" id="demo-result" hidden>
-          <div class="result-title">Result</div>
-          <div class="result-line"><span class="result-status" id="result-status"></span><span class="result-headers" id="result-headers"></span></div>
-          <pre class="result-body" id="result-body"></pre>
-        </div>
-        <div class="demo-out" id="demo-out"><div class="demo-empty" id="demo-empty">responses appear here - log in, then create a disbursement.</div></div>
       </div>
       <p class="demo-tip">
         <strong>Notes:</strong> in <em>live api</em> mode the deployed app must list this page's origin in
