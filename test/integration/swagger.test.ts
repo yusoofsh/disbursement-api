@@ -33,9 +33,16 @@ describe("swagger/openapi", () => {
     const create = doc.paths["/disbursements"].post;
     expect(create.tags).toEqual(["disbursements"]);
     expect(create.security).toEqual([{ bearerAuth: [] }]);
-    expect(create.parameters).toContainEqual(
-      expect.objectContaining({ name: "idempotency-key", in: "header", required: false }),
-    );
+    // The header renders as a first-class OpenAPI parameter on both create and
+    // status transition. No `format: "uuid"` on purpose: Fastify enforces
+    // schema formats at runtime, which would pre-empt the route handler's
+    // typed INVALID_IDEMPOTENCY_KEY error.
+    const idempotencyHeader = { name: "idempotency-key", in: "header", required: false };
+    for (const op of [create, doc.paths["/disbursements/{id}/status"].patch]) {
+      expect(op.parameters).toContainEqual(expect.objectContaining(idempotencyHeader));
+      const param = op.parameters.find((p: { name: string }) => p.name === "idempotency-key");
+      expect(param.schema).toEqual({ type: "string" });
+    }
     expect(doc.paths["/auth/login"].post.tags).toEqual(["auth"]);
     expect(doc.paths["/auth/login"].post.security).toBeUndefined();
 
