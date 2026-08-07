@@ -120,7 +120,11 @@ export async function buildApp(env: Env): Promise<App> {
         description: "Idempotent, concurrency-safe disbursement service.",
         version: "1.0.0",
       },
-      servers: [{ url: "http://localhost:3000" }],
+      // PUBLIC_URL overrides the advertised server (e.g. the Cloudflare-hosted
+      // live docs). When unset, `servers` is omitted so Swagger UI resolves
+      // requests against the page origin instead of a hardcoded localhost that
+      // breaks "Try it out" on the deployed docs.
+      servers: env.PUBLIC_URL ? [{ url: env.PUBLIC_URL }] : undefined,
       components: {
         securitySchemes: {
           bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },

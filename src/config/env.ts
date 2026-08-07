@@ -20,6 +20,17 @@ const envSchema = z.object({
     .refine((value) => value === "" || value === "*" || value.split(",").every((o) => /^https?:\/\/[^\s,]+$/.test(o.trim())), {
       message: "CORS_ORIGIN must be '*', empty, or a comma-separated list of http(s) origins",
     }),
+  // Public base URL advertised in the OpenAPI `servers` field. When empty the
+  // field is omitted and Swagger UI falls back to the page origin, which is
+  // correct for both local dev (localhost) and the live Cloudflare-hosted docs.
+  PUBLIC_URL: z
+    .string()
+    .optional()
+    .default("")
+    .transform((value) => value.trim())
+    .refine((value) => value === "" || /^https?:\/\/[^\s]+$/.test(value), {
+      message: "PUBLIC_URL must be empty or an http(s) URL",
+    }),
   LOG_LEVEL: z.string().default("info"),
 });
 

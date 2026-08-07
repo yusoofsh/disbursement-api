@@ -75,7 +75,7 @@ Every response carries `X-Request-ID` and uses `{ success, data, meta? }` / `{ s
 
 ## Deploy
 
-Every `main` push is built and pushed by CI to `ghcr.io/yusoofsh/disbursement-api` (`latest` + SHA, amd64/arm64). Runs migrations on start; needs `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (32+ chars), optional `PORT`/`HOST`/`CORS_ORIGIN`/rate-limit/`LOG_LEVEL`.
+Every `main` push is built and pushed by CI to `ghcr.io/yusoofsh/disbursement-api` (`latest` + SHA, amd64/arm64). Runs migrations on start; needs `DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (32+ chars), optional `PORT`/`HOST`/`CORS_ORIGIN`/`PUBLIC_URL`/rate-limit/`LOG_LEVEL`. Set `PUBLIC_URL` (e.g. `https://disbursement.yusoofsh.cloud`) so the OpenAPI docs advertise the public host; when unset, Swagger UI resolves requests against the page origin.
 
 ```bash
 docker pull ghcr.io/yusoofsh/disbursement-api:latest

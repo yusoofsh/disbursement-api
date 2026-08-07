@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { App } from "../../src/app.js";
+import { loadEnv } from "../../src/config/env.js";
+import { buildApp } from "../../src/app.js";
 import { createTestApp, inject, resetDatabase } from "../helpers/test-app.js";
 
 describe("swagger/openapi", () => {
@@ -21,6 +23,8 @@ describe("swagger/openapi", () => {
     const doc = res.json();
     expect(typeof doc.openapi).toBe("string");
     expect(doc.openapi.startsWith("3.")).toBe(true);
+    // No hardcoded server URL: Swagger UI falls back to the page origin.
+    expect(doc.servers).toBeUndefined();
     expect(doc.paths["/auth/login"]).toBeDefined();
     expect(doc.paths["/disbursements"]).toBeDefined();
     expect(doc.paths["/disbursements/batch"]).toBeDefined();
@@ -49,5 +53,18 @@ describe("swagger/openapi", () => {
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toContain("text/html");
     expect(res.body).toContain("swagger-ui");
+  });
+
+  it("advertises PUBLIC_URL in the OpenAPI servers list when configured", async () => {
+    const publicApp = await buildApp(loadEnv({ ...process.env, PUBLIC_URL: "https://docs.example.com" }));
+    try {
+      const res = await inject(publicApp, { method: "GET", url: "/documentation/json" });
+
+      expect(res.statusCode).toBe(200);
+      const doc = res.json();
+      expect(doc.servers).toEqual([{ url: "https://docs.example.com" }]);
+    } finally {
+      await publicApp.close();
+    }
   });
 });
